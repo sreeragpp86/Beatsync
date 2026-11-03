@@ -50,6 +50,7 @@ function HomeContent() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Sync likes and load default tracks on mount
   useEffect(() => {
@@ -77,26 +78,41 @@ function HomeContent() {
     }
   }, [searchParams]);
 
-  // Debounced search handler (300ms)
+  // Debounced search handler (300ms) with AbortController to prevent race conditions
   const performSearch = useCallback(async (query: string) => {
     const trimmed = query.trim();
     if (!trimmed) {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
       setTracks(defaultTracks);
       setIsSearching(false);
       return;
     }
 
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     setIsSearching(true);
     try {
-      const res = await fetch(`/api/search?q=${encodeURIComponent(trimmed)}`);
+      const res = await fetch(`/api/search?q=${encodeURIComponent(trimmed)}`, {
+        signal: controller.signal,
+      });
       if (res.ok) {
         const data = await res.json();
         setTracks(data.tracks || []);
       }
-    } catch (err) {
-      console.warn("[BeatSync] Search error:", err);
+    } catch (err: any) {
+      if (err.name !== "AbortError") {
+        console.warn("[BeatSync] Search error:", err);
+      }
     } finally {
-      setIsSearching(false);
+      if (abortControllerRef.current === controller) {
+        setIsSearching(false);
+      }
     }
   }, [defaultTracks]);
 

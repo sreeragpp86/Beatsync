@@ -10,8 +10,7 @@ export const MOCK_TRACKS: Track[] = [
     duration: 193,
     cover_url:
       "https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=600&h=600&fit=crop&q=80",
-    audio_url:
-      "https://archive.org/download/78_september-song_the-melachrino-strings-kurt-weill-george-melachrino_gbia7017084a/SEPTEMBER%20SONG%20-%20THE%20MELACHRINO%20STRINGS%20-%20Kurt%20Weill.mp3",
+    audio_url: "/audio/outfoxing.mp3",
   },
   {
     id: "track-2",
@@ -22,8 +21,7 @@ export const MOCK_TRACKS: Track[] = [
     duration: 178,
     cover_url:
       "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&h=600&fit=crop&q=80",
-    audio_url:
-      "https://archive.org/download/78_lorelei_kalman-lampman-silcher_gbia0444954a/LORELEI%20-%20KALMAN%20%26%20LAMPMAN%20-%20SILCHER.mp3",
+    audio_url: "/audio/viper.mp3",
   },
   {
     id: "track-3",
@@ -34,8 +32,7 @@ export const MOCK_TRACKS: Track[] = [
     duration: 157,
     cover_url:
       "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&h=600&fit=crop&q=80",
-    audio_url:
-      "https://archive.org/download/78_skaters-waltz_gbia0432199a/SKATER%27S%20WALTZ.mp3",
+    audio_url: "/audio/sample1.mp3",
   },
   {
     id: "track-4",
@@ -46,8 +43,7 @@ export const MOCK_TRACKS: Track[] = [
     duration: 242,
     cover_url:
       "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&h=600&fit=crop&q=80",
-    audio_url:
-      "https://archive.org/download/78_2-pantomime-part-1_serge-koussevitzky-and-the-boston-symphony-orchestra-ravel_gbia7002688b/2.%20Pantomime%20(Part%201)%20-%20SERGE%20KOUSSEVITZKY%20and%20the%20BOSTON%20SYMPHONY%20ORCHESTRA.mp3",
+    audio_url: "/audio/sample2.mp3",
   },
   {
     id: "track-5",
@@ -58,8 +54,7 @@ export const MOCK_TRACKS: Track[] = [
     duration: 184,
     cover_url:
       "https://images.unsplash.com/photo-1465847899084-d164df4dedc6?w=600&h=600&fit=crop&q=80",
-    audio_url:
-      "https://archive.org/download/78_2-satz-1-teil-largo-ma-non-tanto_hermann-diener-charlotte-hampe-collegium-musi_gbia7003149/01%20-%201.%20Satz%3A%20Vivace%20-%20Hermann%20Diener%20-%20Charlotte%20Hampe.mp3",
+    audio_url: "/audio/sample3.mp4",
   },
   {
     id: "track-6",
@@ -70,8 +65,7 @@ export const MOCK_TRACKS: Track[] = [
     duration: 304,
     cover_url:
       "https://images.unsplash.com/photo-1507838153414-b4b713384a76?w=600&h=600&fit=crop&q=80",
-    audio_url:
-      "https://archive.org/download/DebussyClairDeLune_641/DebussyClairDeLune.mp3",
+    audio_url: "/audio/sample4.m4a",
   },
   {
     id: "track-7",
@@ -81,9 +75,8 @@ export const MOCK_TRACKS: Track[] = [
     album: "Immortal Sonatas",
     duration: 315,
     cover_url:
-      "https://images.unsplash.com/photo-1520523839898-50712825e617?w=600&h=600&fit=crop&q=80",
-    audio_url:
-      "https://archive.org/download/MoonlightSonata_755/Beethoven-MoonlightSonata.mp3",
+      "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&h=600&fit=crop&q=80",
+    audio_url: "/audio/outfoxing.mp3",
   },
   {
     id: "track-8",
@@ -94,8 +87,7 @@ export const MOCK_TRACKS: Track[] = [
     duration: 216,
     cover_url:
       "https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?w=600&h=600&fit=crop&q=80",
-    audio_url:
-      "https://archive.org/download/VivaldiTheFourSeasons_201306/01_Spring_Allegro.mp3",
+    audio_url: "/audio/viper.mp3",
   },
   {
     id: "track-9",
@@ -106,8 +98,7 @@ export const MOCK_TRACKS: Track[] = [
     duration: 260,
     cover_url:
       "https://images.unsplash.com/photo-1511192336575-5a79af67a629?w=600&h=600&fit=crop&q=80",
-    audio_url:
-      "https://archive.org/download/AirOnTheGString_953/BachAirOnTheGString.mp3",
+    audio_url: "/audio/sample1.mp3",
   },
   {
     id: "track-10",
@@ -118,8 +109,7 @@ export const MOCK_TRACKS: Track[] = [
     duration: 183,
     cover_url:
       "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=600&h=600&fit=crop&q=80",
-    audio_url:
-      "https://archive.org/download/GymnopedieNo.1_888/GymnopedieNo1.mp3",
+    audio_url: "/audio/sample2.mp3",
   },
   {
     id: "track-11",
@@ -130,8 +120,7 @@ export const MOCK_TRACKS: Track[] = [
     duration: 272,
     cover_url:
       "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&h=600&fit=crop&q=80",
-    audio_url:
-      "https://archive.org/download/ChopinNocturneOp9No2_630/ChopinNocturneOp9No2.mp3",
+    audio_url: "/audio/sample3.mp4",
   },
   {
     id: "track-12",
@@ -142,7 +131,6 @@ export const MOCK_TRACKS: Track[] = [
     duration: 452,
     cover_url:
       "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&h=600&fit=crop&q=80",
-    audio_url:
-      "https://archive.org/download/78_the-blue-danube-waltz_the-philadelphia-orchestra-leopold-stokowski-j-strauss_gbia0004523a/The%20Blue%20Danube%20-%20Waltz%20-%20The%20Philadelphia%20Orchestra.mp3",
+    audio_url: "/audio/sample4.m4a",
   },
 ];

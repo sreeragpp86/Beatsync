@@ -8,7 +8,8 @@ export const isSupabaseConfigured = Boolean(
   supabaseAnonKey &&
   supabaseUrl.trim() !== '' &&
   supabaseAnonKey.trim() !== '' &&
-  !supabaseUrl.includes('placeholder')
+  !supabaseUrl.includes('placeholder') &&
+  !supabaseAnonKey.startsWith('sb_secret_')
 );
 
 // Fallback credentials to prevent app startup crashes when environment variables are not configured

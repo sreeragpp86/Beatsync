@@ -48,6 +48,7 @@ const getAudioElement = (): HTMLAudioElement | null => {
     audioInstance = new Audio();
     audioInstance.preload = 'metadata';
     audioInstance.volume = 0.8;
+    (window as any).__audioInstance = audioInstance;
   }
 
   return audioInstance;
@@ -144,7 +145,9 @@ export const useAudioStore = create<AudioState>((set, get) => {
 
       // Auto-advance to next track when playback ends
       audio.addEventListener('ended', () => {
-        get().playNext();
+        if (audio.currentTime > 1) {
+          get().playNext();
+        }
       });
 
       audio.addEventListener('playing', () => {
@@ -292,35 +295,28 @@ export const useAudioStore = create<AudioState>((set, get) => {
       });
 
       if (audio) {
-        try {
-          const { url: streamUrl, isFallback } = await resolveAudioStreamUrl(track);
-          if (isFallback) {
-            set({ toastMessage: 'Streaming high-fidelity audio fallback' });
-          }
+        // SYNCHRONOUS playback start to preserve browser user activation
+        const streamUrl = track.audio_url || `/api/stream?id=${encodeURIComponent(track.id)}`;
 
-          if (audio.src !== streamUrl) {
-            audio.src = streamUrl;
-            audio.currentTime = 0;
-            audio.load();
-          }
+        if (audio.src !== streamUrl) {
+          audio.src = streamUrl;
+          audio.currentTime = 0;
+          audio.load();
+        }
 
-          const playPromise = audio.play();
-          if (playPromise !== undefined) {
-            playPromise
-              .then(() => {
-                consecutiveErrors = 0;
-                set({ isPlaying: true, isLoadingStream: false });
-              })
-              .catch((error) => {
-                if (error.name !== 'AbortError' && error.name !== 'NotAllowedError') {
-                  console.warn('[BeatSync Audio] Playback prevented:', error);
-                }
-                set({ isPlaying: false, isLoadingStream: false });
-              });
-          }
-        } catch (err) {
-          console.warn('[BeatSync Audio] Stream resolution failed:', err);
-          set({ isLoadingStream: false, isPlaying: false });
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              consecutiveErrors = 0;
+              set({ isPlaying: true, isLoadingStream: false });
+            })
+            .catch((error) => {
+              if (error.name !== 'AbortError' && error.name !== 'NotAllowedError') {
+                console.warn('[BeatSync Audio] Playback prevented:', error);
+              }
+              set({ isPlaying: false, isLoadingStream: false });
+            });
         }
       } else {
         set({ isLoadingStream: false });
@@ -346,35 +342,27 @@ export const useAudioStore = create<AudioState>((set, get) => {
 
       const audio = getAudioElement();
       if (audio) {
-        try {
-          const { url: streamUrl, isFallback } = await resolveAudioStreamUrl(targetTrack);
-          if (isFallback) {
-            set({ toastMessage: 'Streaming high-fidelity audio fallback' });
-          }
+        const streamUrl = targetTrack.audio_url || `/api/stream?id=${encodeURIComponent(targetTrack.id)}`;
 
-          if (audio.src !== streamUrl) {
-            audio.src = streamUrl;
-            audio.currentTime = 0;
-            audio.load();
-          }
+        if (audio.src !== streamUrl) {
+          audio.src = streamUrl;
+          audio.currentTime = 0;
+          audio.load();
+        }
 
-          const playPromise = audio.play();
-          if (playPromise !== undefined) {
-            playPromise
-              .then(() => {
-                consecutiveErrors = 0;
-                set({ isPlaying: true, isLoadingStream: false });
-              })
-              .catch((error) => {
-                if (error.name !== 'AbortError' && error.name !== 'NotAllowedError') {
-                  console.warn('[BeatSync Audio] Playback prevented:', error);
-                }
-                set({ isPlaying: false, isLoadingStream: false });
-              });
-          }
-        } catch (err) {
-          console.warn('[BeatSync Audio] Stream resolution failed:', err);
-          set({ isLoadingStream: false, isPlaying: false });
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              consecutiveErrors = 0;
+              set({ isPlaying: true, isLoadingStream: false });
+            })
+            .catch((error) => {
+              if (error.name !== 'AbortError' && error.name !== 'NotAllowedError') {
+                console.warn('[BeatSync Audio] Playback prevented:', error);
+              }
+              set({ isPlaying: false, isLoadingStream: false });
+            });
         }
       } else {
         set({ isLoadingStream: false });
@@ -412,35 +400,27 @@ export const useAudioStore = create<AudioState>((set, get) => {
 
       const audio = getAudioElement();
       if (audio) {
-        try {
-          const { url: streamUrl, isFallback } = await resolveAudioStreamUrl(selectedTrack);
-          if (isFallback) {
-            set({ toastMessage: 'Streaming high-fidelity audio fallback' });
-          }
+        const streamUrl = selectedTrack.audio_url || `/api/stream?id=${encodeURIComponent(selectedTrack.id)}`;
 
-          if (audio.src !== streamUrl) {
-            audio.src = streamUrl;
-            audio.currentTime = 0;
-            audio.load();
-          }
+        if (audio.src !== streamUrl) {
+          audio.src = streamUrl;
+          audio.currentTime = 0;
+          audio.load();
+        }
 
-          const playPromise = audio.play();
-          if (playPromise !== undefined) {
-            playPromise
-              .then(() => {
-                consecutiveErrors = 0;
-                set({ isPlaying: true, isLoadingStream: false });
-              })
-              .catch((err) => {
-                if (err.name !== 'AbortError' && err.name !== 'NotAllowedError') {
-                  console.warn('[BeatSync Audio] Autoplay prevented:', err);
-                }
-                set({ isPlaying: false, isLoadingStream: false });
-              });
-          }
-        } catch (err) {
-          console.warn('[BeatSync Audio] Stream resolution failed:', err);
-          set({ isLoadingStream: false, isPlaying: false });
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              consecutiveErrors = 0;
+              set({ isPlaying: true, isLoadingStream: false });
+            })
+            .catch((err) => {
+              if (err.name !== 'AbortError' && err.name !== 'NotAllowedError') {
+                console.warn('[BeatSync Audio] Autoplay prevented:', err);
+              }
+              set({ isPlaying: false, isLoadingStream: false });
+            });
         }
       } else {
         set({ isLoadingStream: false });
@@ -639,3 +619,7 @@ export const useAudioStore = create<AudioState>((set, get) => {
     },
   };
 });
+
+if (typeof window !== 'undefined') {
+  (window as any).__useAudioStore = useAudioStore;
+}

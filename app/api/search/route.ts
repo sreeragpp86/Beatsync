@@ -35,10 +35,12 @@ function extractVideoId(url?: string): string {
 }
 
 function getHighResCover(thumbnail?: string, videoId?: string): string {
-  if (!thumbnail) {
-    return videoId
-      ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
-      : "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=80";
+  if (videoId) {
+    return `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+  }
+
+  if (!thumbnail || thumbnail.includes("piped-proxy")) {
+    return "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=80";
   }
 
   // If thumbnail has standard Google / Piped size params (=w120-h120, =s120, etc.), upgrade to 500x500
@@ -47,6 +49,54 @@ function getHighResCover(thumbnail?: string, videoId?: string): string {
   }
 
   return thumbnail;
+}
+
+async function fetchSearchFromInstance(
+  instance: string,
+  query: string,
+  timeoutMs = 1800
+): Promise<Track[]> {
+  const searchUrl = `${instance}/search?q=${encodeURIComponent(query)}&filter=music_songs`;
+  const res = await fetch(searchUrl, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (compatible; BeatSync/1.0)",
+      Accept: "application/json",
+    },
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+  const data = await res.json();
+  const items: PipedSearchItem[] = data.items || [];
+
+  const streamItems = items.filter(
+    (item) =>
+      item.url &&
+      !item.isShort &&
+      (item.type === "stream" || item.url.includes("watch?v="))
+  );
+
+  if (streamItems.length === 0) throw new Error("0 stream items");
+
+  return streamItems.slice(0, 25).map((item) => {
+    const videoId = extractVideoId(item.url);
+    const coverUrl = getHighResCover(item.thumbnail, videoId);
+    const durationSecs =
+      typeof item.duration === "number" && item.duration > 0
+        ? item.duration
+        : 180;
+
+    return {
+      id: videoId,
+      title: item.title || "Unknown Title",
+      artist: item.uploaderName || "Unknown Artist",
+      album: "YouTube Music",
+      duration: durationSecs,
+      cover_url: coverUrl,
+      audio_url: `/api/stream?id=${encodeURIComponent(videoId)}`,
+    };
+  });
 }
 
 export async function GET(request: NextRequest) {
@@ -79,63 +129,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 2. Query is present: Fetch from Piped API instances (filter=music_songs)
-    let externalTracks: Track[] = [];
-
-    for (const instance of PIPED_SEARCH_INSTANCES) {
-      try {
-        const searchUrl = `${instance}/search?q=${encodeURIComponent(query)}&filter=music_songs`;
-        const res = await fetch(searchUrl, {
-          headers: {
-            "User-Agent": "Mozilla/5.0 (compatible; BeatSync/1.0)",
-            Accept: "application/json",
-          },
-          signal: AbortSignal.timeout(3000), // 3-second failover timeout
-        });
-
-        if (!res.ok) continue;
-
-        const data = await res.json();
-        const items: PipedSearchItem[] = data.items || [];
-
-        const streamItems = items.filter(
-          (item) =>
-            item.url &&
-            !item.isShort &&
-            (item.type === "stream" || item.url.includes("watch?v="))
-        );
-
-        if (streamItems.length > 0) {
-          externalTracks = streamItems.slice(0, 25).map((item) => {
-            const videoId = extractVideoId(item.url);
-            const coverUrl = getHighResCover(item.thumbnail, videoId);
-            const durationSecs =
-              typeof item.duration === "number" && item.duration > 0
-                ? item.duration
-                : 0;
-
-            return {
-              id: videoId,
-              title: item.title || "Unknown Title",
-              artist: item.uploaderName || "Unknown Artist",
-              album: "YouTube Music",
-              duration: durationSecs,
-              cover_url: coverUrl,
-              audio_url: `/api/stream?id=${encodeURIComponent(videoId)}`,
-            };
-          });
-
-          // Successfully obtained results from Piped
-          break;
-        }
-      } catch {
-        // Try next Piped instance silently
-        continue;
+    // 2. Query is present: Fetch from Piped API instances in parallel with fast failover
+    try {
+      const candidates = PIPED_SEARCH_INSTANCES.slice(0, 4);
+      const results = await Promise.any(
+        candidates.map((inst) => fetchSearchFromInstance(inst, query, 1800))
+      );
+      if (results && results.length > 0) {
+        return NextResponse.json({ tracks: results }, { status: 200 });
       }
-    }
-
-    if (externalTracks.length > 0) {
-      return NextResponse.json({ tracks: externalTracks }, { status: 200 });
+    } catch {
+      // Parallel fetch failed or timed out
     }
 
     // 3. Fallback: If external APIs failed or returned 0 results, query Supabase or local mock tracks

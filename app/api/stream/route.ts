@@ -137,7 +137,10 @@ export async function GET(request: NextRequest) {
           isFallback: false,
         });
       }
-      return NextResponse.redirect(mockTrack.audio_url, 307);
+      const targetUrl = mockTrack.audio_url.startsWith("http")
+        ? mockTrack.audio_url
+        : new URL(mockTrack.audio_url, request.url).toString();
+      return NextResponse.redirect(targetUrl, 307);
     }
 
     // 2. Query top Piped stream endpoints concurrently with Promise.any
@@ -258,7 +261,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Direct audio element request: Redirect to high-fidelity MP3 stream
-    return NextResponse.redirect(fallbackTrack.audio_url, 307);
+    const fallbackTarget = fallbackTrack.audio_url.startsWith("http")
+      ? fallbackTrack.audio_url
+      : new URL(fallbackTrack.audio_url, request.url).toString();
+    return NextResponse.redirect(fallbackTarget, 307);
   } catch (error) {
     console.error("[BeatSync Stream API] Unexpected error:", error);
     const fallback = MOCK_TRACKS[0];
@@ -279,6 +285,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.redirect(fallback.audio_url, 307);
+    const errTarget = fallback.audio_url.startsWith("http")
+      ? fallback.audio_url
+      : new URL(fallback.audio_url, request.url).toString();
+    return NextResponse.redirect(errTarget, 307);
   }
 }
