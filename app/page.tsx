@@ -39,6 +39,7 @@ export default function Home() {
     isPlaying,
     queueIndex,
     setQueue,
+    playWithAutoQueue,
     togglePlay,
   } = useAudioStore();
 
@@ -91,18 +92,18 @@ export default function Home() {
     return tracks;
   }, [tracks, activeTab, likedTrackIds]);
 
-  const handleTrackClick = (track: Track, index: number) => {
+  const handleTrackClick = (track: Track) => {
     if (currentTrack?.id === track.id) {
       togglePlay();
     } else {
-      setQueue(filteredTracks, index);
+      playWithAutoQueue(track, tracks);
     }
   };
 
   const handlePlayAll = () => {
     if (filteredTracks.length > 0) {
       if (!currentTrack) {
-        setQueue(filteredTracks, 0);
+        playWithAutoQueue(filteredTracks[0], tracks);
       } else {
         togglePlay();
       }
@@ -408,7 +409,7 @@ export default function Home() {
                   return (
                     <div
                       key={track.id}
-                      onClick={() => handleTrackClick(track, index)}
+                      onClick={() => handleTrackClick(track)}
                       className={`group relative flex flex-col justify-between rounded-xl border p-4 cursor-pointer transition-all duration-200 ${
                         isActive
                           ? "border-emerald-500/60 bg-zinc-900/90 shadow-lg shadow-emerald-500/10 ring-1 ring-emerald-500/30"
@@ -521,7 +522,7 @@ export default function Home() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleTrackClick(track, index);
+                              handleTrackClick(track);
                             }}
                             aria-label={isTrackPlaying ? `Pause ${track.title}` : `Play ${track.title}`}
                             className={`flex h-8 w-8 items-center justify-center rounded-full transition-all cursor-pointer ${
@@ -563,7 +564,7 @@ export default function Home() {
                     return (
                       <div
                         key={track.id}
-                        onClick={() => handleTrackClick(track, index)}
+                        onClick={() => handleTrackClick(track)}
                         className={`group grid grid-cols-12 items-center gap-2 px-4 py-3 cursor-pointer transition-colors ${
                           isActive
                             ? "bg-emerald-500/10 text-zinc-100"
@@ -651,7 +652,7 @@ export default function Home() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleTrackClick(track, index);
+                              handleTrackClick(track);
                             }}
                             className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors cursor-pointer ${
                               isActive

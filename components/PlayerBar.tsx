@@ -12,9 +12,11 @@ import {
   VolumeX,
   Music2,
   Heart,
+  ListMusic,
 } from "lucide-react";
 import { useAudioStore } from "@/stores/useAudioStore";
 import { useLikesStore } from "@/stores/useLikesStore";
+import { QueueDrawer } from "@/components/QueueDrawer";
 
 function formatTime(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
@@ -35,6 +37,8 @@ export function PlayerBar() {
     setVolume,
     playNext,
     playPrevious,
+    toggleQueue,
+    isQueueOpen,
   } = useAudioStore();
 
   const { isLiked, toggleLike } = useLikesStore();
@@ -121,8 +125,9 @@ export function PlayerBar() {
   };
 
   return (
-    <footer
-      aria-label="Persistent Audio Player"
+    <>
+      <footer
+        aria-label="Persistent Audio Player"
       className="fixed bottom-0 left-0 right-0 h-20 bg-zinc-900/90 backdrop-blur-md border-t border-zinc-800 px-4 md:px-6 z-50 flex items-center justify-between shadow-2xl"
     >
       {/* Left Section: Track Info / Placeholder */}
@@ -255,10 +260,24 @@ export function PlayerBar() {
 
       {/* Right Section: Volume & Aux Controls */}
       <div className="flex items-center justify-end gap-2.5 w-1/4 min-w-[100px] sm:min-w-[140px] max-w-[240px]">
+        {/* Toggle Up Next Queue Drawer */}
+        <button
+          onClick={toggleQueue}
+          aria-label={isQueueOpen ? "Close Up Next Queue" : "Open Up Next Queue"}
+          className={`rounded p-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 cursor-pointer ${
+            isQueueOpen
+              ? "text-emerald-400 bg-emerald-500/10"
+              : "text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60"
+          }`}
+          title="Up Next Queue"
+        >
+          <ListMusic className="h-4 w-4" />
+        </button>
+
         <button
           onClick={handleToggleMute}
           aria-label={volume === 0 ? "Unmute sound" : "Mute sound"}
-          className="group rounded p-1 text-zinc-400 hover:text-zinc-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+          className="group rounded p-1 text-zinc-400 hover:text-zinc-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 cursor-pointer"
         >
           {renderVolumeIcon()}
         </button>
@@ -283,6 +302,10 @@ export function PlayerBar() {
         </div>
       </div>
     </footer>
+
+    {/* Up Next Slide-over Drawer */}
+    <QueueDrawer />
+    </>
   );
 }
 

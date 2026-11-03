@@ -10,10 +10,18 @@ export interface AudioState {
   volume: number;
   queue: Track[];
   queueIndex: number;
+  isQueueOpen: boolean;
 
   // Actions
   setQueue: (tracks: Track[], startIndex?: number) => void;
   playTrack: (track: Track) => void;
+  playQueueIndex: (index: number) => void;
+  playWithAutoQueue: (selectedTrack: Track, allAvailableTracks: Track[]) => void;
+  clearQueue: () => void;
+  removeFromQueue: (index: number) => void;
+  reorderQueue: (fromIndex: number, toIndex: number) => void;
+  toggleQueue: () => void;
+  setIsQueueOpen: (open: boolean) => void;
   togglePlay: () => void;
   seek: (seconds: number) => void;
   setVolume: (volume: number) => void;
@@ -61,6 +69,7 @@ export const useAudioStore = create<AudioState>((set, get) => {
         }
       });
 
+      // Auto-advance to next track when playback ends
       audio.addEventListener('ended', () => {
         get().playNext();
       });
@@ -88,6 +97,10 @@ export const useAudioStore = create<AudioState>((set, get) => {
     volume: 0.8,
     queue: [],
     queueIndex: -1,
+    isQueueOpen: false,
+
+    toggleQueue: () => set((state) => ({ isQueueOpen: !state.isQueueOpen })),
+    setIsQueueOpen: (open: boolean) => set({ isQueueOpen: open }),
 
     setQueue: (tracks: Track[], startIndex = 0) => {
       if (!tracks || tracks.length === 0) {
@@ -116,7 +129,7 @@ export const useAudioStore = create<AudioState>((set, get) => {
         queueIndex: validIndex,
       });
 
-      get().playTrack(targetTrack);
+      get().playQueueIndex(validIndex);
     },
 
     playTrack: (track: Track) => {
@@ -154,7 +167,6 @@ export const useAudioStore = create<AudioState>((set, get) => {
               set({ isPlaying: true });
             })
             .catch((error) => {
-              // Ignore AbortError if another track or action paused/aborted the playback
               if (error.name !== 'AbortError') {
                 console.warn('[SoundWave Audio] Playback prevented:', error);
               }
@@ -164,6 +176,199 @@ export const useAudioStore = create<AudioState>((set, get) => {
       }
     },
 
+    playQueueIndex: (index: number) => {
+      const { queue } = get();
+      if (!queue || index < 0 || index >= queue.length) return;
+
+      const targetTrack = queue[index];
+
+      set({
+        queueIndex: index,
+        currentTrack: targetTrack,
+        currentTime: 0,
+        duration: targetTrack.duration || 0,
+      });
+
+      const audio = getAudioElement();
+      if (audio) {
+        if (audio.src !== targetTrack.audio_url) {
+          audio.src = targetTrack.audio_url;
+          audio.currentTime = 0;
+          audio.load();
+        }
+
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              set({ isPlaying: true });
+            })
+            .catch((error) => {
+              if (error.name !== 'AbortError') {
+                console.warn('[SoundWave Audio] Playback prevented:', error);
+              }
+              set({ isPlaying: false });
+            });
+        }
+      }
+    },
+
+    playWithAutoQueue: (selectedTrack: Track, allAvailableTracks: Track[]) => {
+      if (!selectedTrack) return;
+
+      // 1. Filter candidates excluding selectedTrack
+      const candidates = (allAvailableTracks || []).filter(
+        (t) => t.id !== selectedTrack.id
+      );
+
+      // 2. Prioritize tracks sharing artist, genre, or album
+      const matching = candidates.filter((t) => {
+        const sameArtist =
+          t.artist.trim().toLowerCase() === selectedTrack.artist.trim().toLowerCase();
+        const sameGenre = Boolean(
+          t.genre &&
+            selectedTrack.genre &&
+            t.genre.trim().toLowerCase() === selectedTrack.genre.trim().toLowerCase()
+        );
+        const sameAlbum = Boolean(
+          t.album &&
+            selectedTrack.album &&
+            t.album.trim().toLowerCase() === selectedTrack.album.trim().toLowerCase()
+        );
+        return sameArtist || sameGenre || sameAlbum;
+      });
+
+      const nonMatching = candidates.filter((t) => !matching.includes(t));
+
+      // 3. Randomized shuffle of remaining non-matching tracks
+      const shuffledNonMatching = [...nonMatching];
+      for (let i = shuffledNonMatching.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffledNonMatching[i], shuffledNonMatching[j]] = [
+          shuffledNonMatching[j],
+          shuffledNonMatching[i],
+        ];
+      }
+
+      const prioritizedPool = [...matching, ...shuffledNonMatching];
+
+      // 4. Target auto-queue length: 10 to 20 tracks
+      let generatedQueue: Track[] = [selectedTrack, ...prioritizedPool];
+
+      // Pad queue if catalog is smaller than 10 tracks
+      if (generatedQueue.length > 1 && generatedQueue.length < 10) {
+        const cyclePool = [...prioritizedPool, selectedTrack];
+        let idx = 0;
+        while (generatedQueue.length < 12 && cyclePool.length > 0) {
+          generatedQueue.push(cyclePool[idx % cyclePool.length]);
+          idx++;
+        }
+      }
+
+      const finalQueue = generatedQueue.slice(0, 20);
+
+      set({
+        queue: finalQueue,
+        queueIndex: 0,
+        currentTrack: selectedTrack,
+        currentTime: 0,
+        duration: selectedTrack.duration || 0,
+      });
+
+      const audio = getAudioElement();
+      if (audio) {
+        if (audio.src !== selectedTrack.audio_url) {
+          audio.src = selectedTrack.audio_url;
+          audio.currentTime = 0;
+          audio.load();
+        }
+
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => set({ isPlaying: true }))
+            .catch((err) => {
+              if (err.name !== 'AbortError') {
+                console.warn('[SoundWave Audio] Autoplay prevented:', err);
+              }
+              set({ isPlaying: false });
+            });
+        }
+      }
+    },
+
+    clearQueue: () => {
+      const { currentTrack } = get();
+      if (currentTrack) {
+        set({
+          queue: [currentTrack],
+          queueIndex: 0,
+        });
+      } else {
+        set({
+          queue: [],
+          queueIndex: -1,
+        });
+      }
+    },
+
+    removeFromQueue: (index: number) => {
+      const { queue, queueIndex } = get();
+      if (index < 0 || index >= queue.length) return;
+
+      const newQueue = queue.filter((_, i) => i !== index);
+      let newQueueIndex = queueIndex;
+
+      if (index < queueIndex) {
+        newQueueIndex = Math.max(0, queueIndex - 1);
+      } else if (index === queueIndex) {
+        if (newQueue.length > 0) {
+          newQueueIndex = Math.min(queueIndex, newQueue.length - 1);
+          get().playQueueIndex(newQueueIndex);
+          return;
+        } else {
+          get().setQueue([]);
+          return;
+        }
+      }
+
+      set({
+        queue: newQueue,
+        queueIndex: newQueueIndex,
+      });
+    },
+
+    reorderQueue: (fromIndex: number, toIndex: number) => {
+      const { queue, queueIndex } = get();
+      if (
+        fromIndex < 0 ||
+        fromIndex >= queue.length ||
+        toIndex < 0 ||
+        toIndex >= queue.length ||
+        fromIndex === toIndex
+      ) {
+        return;
+      }
+
+      const updated = [...queue];
+      const [moved] = updated.splice(fromIndex, 1);
+      updated.splice(toIndex, 0, moved);
+
+      let newIndex = queueIndex;
+      if (queueIndex === fromIndex) {
+        newIndex = toIndex;
+      } else if (fromIndex < queueIndex && toIndex >= queueIndex) {
+        newIndex = queueIndex - 1;
+      } else if (fromIndex > queueIndex && toIndex <= queueIndex) {
+        newIndex = queueIndex + 1;
+      }
+
+      set({
+        queue: updated,
+        queueIndex: newIndex,
+      });
+    },
+
     togglePlay: () => {
       const audio = getAudioElement();
       const { isPlaying, currentTrack, queue, queueIndex } = get();
@@ -171,7 +376,7 @@ export const useAudioStore = create<AudioState>((set, get) => {
       if (!currentTrack) {
         if (queue.length > 0) {
           const indexToPlay = queueIndex >= 0 ? queueIndex : 0;
-          get().playTrack(queue[indexToPlay]);
+          get().playQueueIndex(indexToPlay);
         }
         return;
       }
@@ -237,10 +442,7 @@ export const useAudioStore = create<AudioState>((set, get) => {
       if (!queue || queue.length === 0) return;
 
       const nextIndex = (queueIndex + 1) % queue.length;
-      const nextTrack = queue[nextIndex];
-
-      set({ queueIndex: nextIndex });
-      get().playTrack(nextTrack);
+      get().playQueueIndex(nextIndex);
     },
 
     playPrevious: () => {
@@ -260,10 +462,7 @@ export const useAudioStore = create<AudioState>((set, get) => {
 
       // Otherwise jump to previous track in queue
       const prevIndex = (queueIndex - 1 + queue.length) % queue.length;
-      const prevTrack = queue[prevIndex];
-
-      set({ queueIndex: prevIndex });
-      get().playTrack(prevTrack);
+      get().playQueueIndex(prevIndex);
     },
   };
 });
