@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SoundWave - Modern Music Streaming",
+  title: "BeatSync - Modern Music Streaming",
   description: "Lightweight, high-contrast modern music streaming web app.",
 };
 

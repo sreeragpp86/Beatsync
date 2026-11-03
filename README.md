@@ -1,6 +1,6 @@
-# SoundWave
+# BeatSync
 
-SoundWave is a lightweight, high-performance music streaming web application built with **Next.js (App Router)**, **TypeScript**, **Tailwind CSS**, **Zustand**, and **Supabase**. It features a decoupled, persistent audio engine that guarantees uninterrupted playback across page navigations, smooth byte-range seeking, and zero-egress audio asset delivery.
+BeatSync is a lightweight, high-performance music streaming web application built with **Next.js (App Router)**, **TypeScript**, **Tailwind CSS**, **Zustand**, and **Supabase**. It features a decoupled, persistent audio engine that guarantees uninterrupted playback across page navigations, smooth byte-range seeking, and zero-egress audio asset delivery.
 
 ---
 
@@ -8,11 +8,14 @@ SoundWave is a lightweight, high-performance music streaming web application bui
 
 - **Persistent Audio Engine**: Decoupled HTML5 audio singleton managed via a global Zustand store. Audio never stutters or resets during client-side route transitions.
 - **Uninterrupted Queue System**: Full playlist orchestration with continuous playback, auto-advance on track completion, and intuitive queue navigation (Next / Previous / Seek).
+- **Automatic Smart Queue & Up Next Drawer**: Dynamic queue generation based on artist, genre, and album similarity, with a slide-over drawer allowing instant track skipping and queue clearing.
 - **Sub-Second Audio Scrubbing**: Leverages HTTP Range requests for instant scrubbing without downloading full media files or stuttering during user drag.
+- **Liked Songs & Persistent Favorites**: Save tracks with optimistic state updates, persisted across sessions in `localStorage` and synchronized in the background to Supabase.
 - **Responsive Player Bar**: Fixed, hardware-accelerated playback dock featuring track artwork, real-time timeline scrubber, elapsed/total counters, and volume controls.
-- **Dynamic Search & Filtering**: Client-side instant search across track titles, albums, and artist metadata.
-- **Zero-Egress Asset Pipeline**: Architected to pull streaming audio from S3-compatible object storage (Cloudflare R2 or Supabase Storage) with zero egress fees.
-- **Fail-Safe Development Mode**: Bundled with royalty-free fallback tracks so the player works out of the box even before remote databases or buckets are configured.
+- **Dynamic Search & Filtering**: Client-side debounced instant search across track titles, albums, and artist metadata with `/api/search`.
+- **Audio Error Recovery & Toast Alerts**: Catches streaming errors (CORS, 404s, network timeouts) gracefully, alerts the user, and automatically advances to the next track in the queue.
+- **Automated Database Seeder**: Built-in CLI seeder script (`npm run seed`) populating Supabase with royalty-free public domain tracks and Unsplash artwork.
+- **Fail-Safe Development Mode**: Bundled with 12 royalty-free fallback tracks so the player works out of the box even before remote databases are configured.
 
 ---
 
@@ -82,15 +85,17 @@ NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ```
 
-### 3. Database Schema
+### 3. Database Schema & Seeder
 
-If using Supabase, run the following SQL migration in your project's **SQL Editor**:
+If using Supabase, run the migrations located in `supabase/migrations/`:
 
 ```sql
+-- 1. Tracks table
 create table public.tracks (
   id text primary key,
   title text not null,
   artist text not null,
+  genre text,
   album text,
   duration integer not null, -- duration in seconds
   cover_url text,            -- public image URL
@@ -98,13 +103,29 @@ create table public.tracks (
   created_at timestamptz default now() not null
 );
 
--- Enable public read access (Row Level Security)
 alter table public.tracks enable row level security;
+create policy "Allow public read access" on public.tracks for select using (true);
+create policy "Allow public insert access" on public.tracks for insert with check (true);
 
-create policy "Allow public read access"
-  on public.tracks
-  for select
-  using (true);
+-- 2. Liked Tracks table
+create table public.liked_tracks (
+  id uuid primary key default gen_random_uuid(),
+  track_id text references public.tracks(id) on delete cascade,
+  user_identifier text not null,
+  created_at timestamptz default now() not null,
+  unique (track_id, user_identifier)
+);
+
+alter table public.liked_tracks enable row level security;
+create policy "Allow public read access" on public.liked_tracks for select using (true);
+create policy "Allow public insert access" on public.liked_tracks for insert with check (true);
+create policy "Allow public delete access" on public.liked_tracks for delete using (true);
+```
+
+Then seed your Supabase database with 12 royalty-free masterworks:
+
+```bash
+npm run seed
 ```
 
 ### 4. Run the Development Server
@@ -121,17 +142,30 @@ Open [http://localhost:3000](http://localhost:3000) in your browser to view the 
 
 ```text
 ├── app/
+│   ├── api/search/route.ts  # Track search endpoint with fuzzy matching
 │   ├── globals.css          # Tailwind base styles and dark theme tokens
 │   ├── layout.tsx           # Root shell with persistent <PlayerBar /> dock
-│   └── page.tsx             # Track discovery catalog, hero banner, search bar
+│   ├── liked/page.tsx       # Dedicated Liked Songs page with Play All
+│   └── page.tsx             # Discovery feed, hero banner, search bar, view toggle
 ├── components/
-│   └── PlayerBar.tsx        # Bottom fixed player with controls and scrubber
+│   ├── LikeButton.tsx       # Interactive animated heart button
+│   ├── Navbar.tsx           # Top navigation and connection status
+│   ├── PlayerBar.tsx        # Bottom fixed player with controls and scrubber
+│   ├── QueueDrawer.tsx      # Slide-over Up Next playlist drawer
+│   ├── SearchBar.tsx        # Debounced instant search bar
+│   ├── Sidebar.tsx          # Desktop navigation & audio engine status widget
+│   ├── Toast.tsx            # Floating error/notification alert
+│   ├── TrackCard.tsx        # Grid card with hover playback trigger
+│   └── TrackTable.tsx       # High-density playlist table
 ├── lib/
-│   ├── mock-tracks.ts       # Royalty-free audio seed data for offline dev
+│   ├── mock-tracks.ts       # 12 royalty-free audio seed tracks for offline dev
 │   ├── supabase.ts          # Supabase client instantiation with fallback
 │   └── tracks.ts            # Hybrid data access layer (remote + fallback)
+├── scripts/
+│   └── seed.ts              # Supabase database seeder script
 ├── stores/
-│   └── useAudioStore.ts     # Headless audio engine singleton & Zustand store
+│   ├── useAudioStore.ts     # Headless audio engine singleton & auto-queue
+│   └── useLikesStore.ts     # Persisted favorites store with Supabase sync
 └── types/
     └── track.ts             # Core TypeScript interfaces
 ```

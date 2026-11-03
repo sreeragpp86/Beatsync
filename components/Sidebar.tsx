@@ -121,7 +121,7 @@ export function Sidebar() {
 
       {/* Footer Info */}
       <div className="rounded-lg bg-zinc-900/80 p-3 text-xs text-zinc-400 border border-zinc-800">
-        <p className="text-zinc-300 font-medium">SoundWave Audio</p>
+        <p className="text-zinc-300 font-medium">BeatSync Audio</p>
         <p className="mt-1 text-[11px] leading-relaxed text-zinc-500">
           Playback stays active across all navigation. Up Next queue and favorites sync automatically.
         </p>

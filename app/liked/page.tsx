@@ -189,7 +189,7 @@ export default function LikedSongsPage() {
                   No liked songs yet
                 </h3>
                 <p className="text-xs text-zinc-400 mt-1.5 max-w-sm leading-relaxed">
-                  Songs you like by tapping the heart icon anywhere in SoundWave will be saved here for quick playback.
+                  Songs you like by tapping the heart icon anywhere in BeatSync will be saved here for quick playback.
                 </p>
                 <Link
                   href="/"
