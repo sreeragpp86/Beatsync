@@ -20,10 +20,12 @@ import {
   LayoutGrid,
   List,
   Clock,
+  Heart,
 } from "lucide-react";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { getTracks } from "@/lib/tracks";
 import { useAudioStore } from "@/stores/useAudioStore";
+import { useLikesStore } from "@/stores/useLikesStore";
 import { Track } from "@/types/track";
 
 function formatTime(seconds: number): string {
@@ -42,6 +44,8 @@ export default function Home() {
     togglePlay,
   } = useAudioStore();
 
+  const { isLiked, toggleLike, syncLikes, likedTrackIds } = useLikesStore();
+
   const [tracks, setTracks] = useState<Track[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"explore" | "library" | "radio">(
@@ -50,9 +54,11 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
-  // Load tracks via the data access layer
+  // Load tracks via data access layer and sync remote likes
   useEffect(() => {
     let mounted = true;
+    syncLikes();
+
     getTracks()
       .then((data) => {
         if (mounted) {
@@ -71,19 +77,25 @@ export default function Home() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [syncLikes]);
 
-  // Filter tracks by title, artist, or album
+  // Filter tracks by active tab (Explore vs Library) and search query
   const filteredTracks = useMemo(() => {
-    if (!searchQuery.trim()) return tracks;
+    let list = tracks;
+
+    if (activeTab === "library") {
+      list = list.filter((t) => likedTrackIds.includes(t.id));
+    }
+
+    if (!searchQuery.trim()) return list;
     const query = searchQuery.toLowerCase().trim();
-    return tracks.filter(
+    return list.filter(
       (t) =>
         t.title.toLowerCase().includes(query) ||
         t.artist.toLowerCase().includes(query) ||
         (t.album && t.album.toLowerCase().includes(query))
     );
-  }, [tracks, searchQuery]);
+  }, [tracks, searchQuery, activeTab, likedTrackIds]);
 
   const handleTrackClick = (track: Track, index: number) => {
     if (currentTrack?.id === track.id) {
@@ -177,14 +189,21 @@ export default function Home() {
               </button>
               <button
                 onClick={() => setActiveTab("library")}
-                className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors cursor-pointer ${
+                className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-colors cursor-pointer ${
                   activeTab === "library"
                     ? "bg-zinc-800 text-emerald-400 shadow-sm"
                     : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
                 }`}
               >
-                <Library className="h-4 w-4" />
-                Your Library
+                <div className="flex items-center gap-3">
+                  <Library className="h-4 w-4" />
+                  <span>Your Library</span>
+                </div>
+                {likedTrackIds.length > 0 && (
+                  <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-mono font-semibold text-emerald-400">
+                    {likedTrackIds.length}
+                  </span>
+                )}
               </button>
             </div>
 
@@ -465,25 +484,44 @@ export default function Home() {
                           </span>
                         </div>
 
-                        {/* Inline Play Action Button */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleTrackClick(track, index);
-                          }}
-                          aria-label={isTrackPlaying ? `Pause ${track.title}` : `Play ${track.title}`}
-                          className={`flex h-8 w-8 items-center justify-center rounded-full transition-all ${
-                            isActive
-                              ? "bg-emerald-500 text-zinc-950 shadow-md shadow-emerald-500/20"
-                              : "bg-zinc-800 text-zinc-300 hover:bg-emerald-500 hover:text-zinc-950 hover:scale-105"
-                          }`}
-                        >
-                          {isTrackPlaying ? (
-                            <Pause className="h-4 w-4 fill-current" />
-                          ) : (
-                            <Play className="h-4 w-4 fill-current ml-0.5" />
-                          )}
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleLike(track.id);
+                            }}
+                            aria-label={isLiked(track.id) ? `Unlike ${track.title}` : `Like ${track.title}`}
+                            className="p-1.5 rounded-full text-zinc-400 hover:text-emerald-400 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-400 cursor-pointer"
+                          >
+                            <Heart
+                              className={`h-4 w-4 transition-transform active:scale-125 ${
+                                isLiked(track.id)
+                                  ? "fill-emerald-400 text-emerald-400"
+                                  : "text-zinc-500 hover:text-zinc-300"
+                              }`}
+                            />
+                          </button>
+
+                          {/* Inline Play Action Button */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleTrackClick(track, index);
+                            }}
+                            aria-label={isTrackPlaying ? `Pause ${track.title}` : `Play ${track.title}`}
+                            className={`flex h-8 w-8 items-center justify-center rounded-full transition-all cursor-pointer ${
+                              isActive
+                                ? "bg-emerald-500 text-zinc-950 shadow-md shadow-emerald-500/20"
+                                : "bg-zinc-800 text-zinc-300 hover:bg-emerald-500 hover:text-zinc-950 hover:scale-105"
+                            }`}
+                          >
+                            {isTrackPlaying ? (
+                              <Pause className="h-4 w-4 fill-current" />
+                            ) : (
+                              <Play className="h-4 w-4 fill-current ml-0.5" />
+                            )}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );
@@ -572,8 +610,25 @@ export default function Home() {
                           {track.album || "—"}
                         </div>
 
-                        {/* Duration & Play action */}
-                        <div className="col-span-5 sm:col-span-2 flex items-center justify-end gap-3 text-right">
+                        {/* Duration, Like & Play action */}
+                        <div className="col-span-5 sm:col-span-2 flex items-center justify-end gap-2.5 text-right">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleLike(track.id);
+                            }}
+                            aria-label={isLiked(track.id) ? `Unlike ${track.title}` : `Like ${track.title}`}
+                            className="p-1 rounded-full text-zinc-400 hover:text-emerald-400 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-400 cursor-pointer"
+                          >
+                            <Heart
+                              className={`h-3.5 w-3.5 transition-transform active:scale-125 ${
+                                isLiked(track.id)
+                                  ? "fill-emerald-400 text-emerald-400"
+                                  : "text-zinc-500 hover:text-zinc-300"
+                              }`}
+                            />
+                          </button>
+
                           <span className={`text-xs font-mono ${isActive ? "text-emerald-400 font-medium" : "text-zinc-400"}`}>
                             {formatTime(track.duration)}
                           </span>
@@ -583,7 +638,7 @@ export default function Home() {
                               e.stopPropagation();
                               handleTrackClick(track, index);
                             }}
-                            className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors ${
+                            className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors cursor-pointer ${
                               isActive
                                 ? "bg-emerald-500 text-zinc-950"
                                 : "bg-zinc-800 text-zinc-400 opacity-0 group-hover:opacity-100 hover:bg-emerald-500 hover:text-zinc-950"
