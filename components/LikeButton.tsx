@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Heart } from "lucide-react";
 import { useLikesStore } from "@/stores/useLikesStore";
 
@@ -14,8 +15,14 @@ export function LikeButton({
   size = 16,
   className = "",
 }: LikeButtonProps) {
+  const [mounted, setMounted] = useState(false);
   const { isLiked, toggleLike } = useLikesStore();
-  const liked = isLiked(trackId);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const liked = mounted ? isLiked(trackId) : false;
 
   const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();

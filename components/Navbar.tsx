@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Headphones, CheckCircle2, AlertCircle, Heart, Compass } from "lucide-react";
@@ -7,8 +8,15 @@ import { isSupabaseConfigured } from "@/lib/supabase";
 import { useLikesStore } from "@/stores/useLikesStore";
 
 export function Navbar() {
+  const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
   const { likedTrackIds } = useLikesStore();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const likedCount = mounted ? likedTrackIds.length : 0;
 
   return (
     <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between border-b border-zinc-800/80 bg-zinc-950/80 px-4 md:px-8 backdrop-blur-md">
@@ -58,9 +66,9 @@ export function Navbar() {
               }`}
             />
             <span>Liked</span>
-            {likedTrackIds.length > 0 && (
+            {likedCount > 0 && (
               <span className="rounded-full bg-rose-500/20 px-1.5 text-[9px] font-mono text-rose-400">
-                {likedTrackIds.length}
+                {likedCount}
               </span>
             )}
           </Link>

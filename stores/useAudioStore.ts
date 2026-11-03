@@ -11,8 +11,10 @@ export interface AudioState {
   queue: Track[];
   queueIndex: number;
   isQueueOpen: boolean;
+  toastMessage: string | null;
 
   // Actions
+  setToastMessage: (msg: string | null) => void;
   setQueue: (tracks: Track[], startIndex?: number) => void;
   playTrack: (track: Track) => void;
   playQueueIndex: (index: number) => void;
@@ -84,7 +86,16 @@ export const useAudioStore = create<AudioState>((set, get) => {
 
       audio.addEventListener('error', (e) => {
         console.error('[SoundWave Audio] Error playing audio:', e);
-        set({ isPlaying: false });
+        set({
+          isPlaying: false,
+          toastMessage: 'Unable to stream this track. Skipping...',
+        });
+        const currentQueue = get().queue;
+        if (currentQueue && currentQueue.length > 1) {
+          setTimeout(() => {
+            get().playNext();
+          }, 1500);
+        }
       });
     }
   }
@@ -98,7 +109,9 @@ export const useAudioStore = create<AudioState>((set, get) => {
     queue: [],
     queueIndex: -1,
     isQueueOpen: false,
+    toastMessage: null,
 
+    setToastMessage: (msg: string | null) => set({ toastMessage: msg }),
     toggleQueue: () => set((state) => ({ isQueueOpen: !state.isQueueOpen })),
     setIsQueueOpen: (open: boolean) => set({ isQueueOpen: open }),
 
@@ -169,6 +182,12 @@ export const useAudioStore = create<AudioState>((set, get) => {
             .catch((error) => {
               if (error.name !== 'AbortError') {
                 console.warn('[SoundWave Audio] Playback prevented:', error);
+                if (error.name !== 'NotAllowedError') {
+                  set({ toastMessage: 'Unable to stream this track. Skipping...' });
+                  if (get().queue.length > 1) {
+                    setTimeout(() => get().playNext(), 1500);
+                  }
+                }
               }
               set({ isPlaying: false });
             });
@@ -206,6 +225,12 @@ export const useAudioStore = create<AudioState>((set, get) => {
             .catch((error) => {
               if (error.name !== 'AbortError') {
                 console.warn('[SoundWave Audio] Playback prevented:', error);
+                if (error.name !== 'NotAllowedError') {
+                  set({ toastMessage: 'Unable to stream this track. Skipping...' });
+                  if (get().queue.length > 1) {
+                    setTimeout(() => get().playNext(), 1500);
+                  }
+                }
               }
               set({ isPlaying: false });
             });
@@ -290,6 +315,12 @@ export const useAudioStore = create<AudioState>((set, get) => {
             .catch((err) => {
               if (err.name !== 'AbortError') {
                 console.warn('[SoundWave Audio] Autoplay prevented:', err);
+                if (err.name !== 'NotAllowedError') {
+                  set({ toastMessage: 'Unable to stream this track. Skipping...' });
+                  if (get().queue.length > 1) {
+                    setTimeout(() => get().playNext(), 1500);
+                  }
+                }
               }
               set({ isPlaying: false });
             });

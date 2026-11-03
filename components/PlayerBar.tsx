@@ -16,6 +16,7 @@ import {
 import { useAudioStore } from "@/stores/useAudioStore";
 import { QueueDrawer } from "@/components/QueueDrawer";
 import { LikeButton } from "@/components/LikeButton";
+import { Toast } from "@/components/Toast";
 
 function formatTime(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
@@ -290,6 +291,9 @@ export function PlayerBar() {
 
     {/* Up Next Slide-over Drawer */}
     <QueueDrawer />
+
+    {/* Toast Notifications */}
+    <Toast />
     </>
   );
 }

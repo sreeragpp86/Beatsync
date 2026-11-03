@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Compass, Heart, Radio, Sparkles } from "lucide-react";
@@ -7,9 +8,16 @@ import { useAudioStore } from "@/stores/useAudioStore";
 import { useLikesStore } from "@/stores/useLikesStore";
 
 export function Sidebar() {
+  const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
   const { queueIndex, isPlaying, queue } = useAudioStore();
   const { likedTrackIds } = useLikesStore();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const likedCount = mounted ? likedTrackIds.length : 0;
 
   const navLinks = [
     {
@@ -23,7 +31,7 @@ export function Sidebar() {
       href: "/liked",
       icon: Heart,
       isActive: pathname === "/liked",
-      badge: likedTrackIds.length > 0 ? likedTrackIds.length : null,
+      badge: likedCount > 0 ? likedCount : null,
       badgeColor: "bg-rose-500/20 text-rose-400 border border-rose-500/30",
     },
     {
