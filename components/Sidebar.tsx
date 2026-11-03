@@ -3,15 +3,26 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Compass, Heart, Radio, Sparkles } from "lucide-react";
-import { useAudioStore } from "@/stores/useAudioStore";
+import {
+  Home,
+  Search,
+  Heart,
+  Library,
+  Plus,
+  Activity,
+  Music2,
+  Sparkles,
+  Disc3,
+  Compass,
+} from "lucide-react";
 import { useLikesStore } from "@/stores/useLikesStore";
+import { useAudioStore } from "@/stores/useAudioStore";
 
 export function Sidebar() {
   const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
-  const { queueIndex, isPlaying, queue } = useAudioStore();
   const { likedTrackIds } = useLikesStore();
+  const { queue } = useAudioStore();
 
   useEffect(() => {
     setMounted(true);
@@ -19,112 +30,129 @@ export function Sidebar() {
 
   const likedCount = mounted ? likedTrackIds.length : 0;
 
-  const navLinks = [
-    {
-      name: "Discover",
-      href: "/",
-      icon: Compass,
-      isActive: pathname === "/",
-    },
-    {
-      name: "Liked Songs",
-      href: "/liked",
-      icon: Heart,
-      isActive: pathname === "/liked",
-      badge: likedCount > 0 ? likedCount : null,
-      badgeColor: "bg-rose-500/20 text-rose-400 border border-rose-500/30",
-    },
-    {
-      name: "Radio",
-      href: "/#radio",
-      icon: Radio,
-      isActive: false,
-    },
+  const quickPlaylists = [
+    { title: "Today's Top Hits", subtitle: "Playlist • BeatSync", href: "/" },
+    { title: "Chill Lofi Beats", subtitle: "Playlist • BeatSync", href: "/" },
+    { title: "Deep Focus Instrumental", subtitle: "Playlist • BeatSync", href: "/" },
+    { title: "All Out 2000s Hits", subtitle: "Playlist • BeatSync", href: "/" },
   ];
 
   return (
-    <aside className="hidden w-64 flex-col justify-between border-r border-zinc-800/80 bg-zinc-900/30 p-4 md:flex shrink-0 select-none">
-      <div className="space-y-6">
-        {/* Navigation Section */}
-        <div className="space-y-1">
-          <p className="px-3 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-            Menu
-          </p>
-
-          {navLinks.map((item) => {
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
-                  item.isActive
-                    ? "bg-zinc-800/90 text-emerald-400 shadow-sm border border-zinc-700/50"
-                    : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Icon
-                    className={`h-4 w-4 ${
-                      item.name === "Liked Songs" && item.isActive
-                        ? "text-rose-400 fill-rose-400"
-                        : ""
-                    }`}
-                  />
-                  <span>{item.name}</span>
-                </div>
-
-                {item.badge !== null && item.badge !== undefined && (
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-[10px] font-mono font-semibold ${item.badgeColor}`}
-                  >
-                    {item.badge}
-                  </span>
-                )}
-              </Link>
-            );
-          })}
-        </div>
-
-        {/* Audio Engine Status Widget */}
-        <div className="rounded-xl border border-zinc-800/80 bg-zinc-900/60 p-3.5">
-          <div className="flex items-center gap-2 text-xs font-semibold text-zinc-200">
-            <Sparkles className="h-3.5 w-3.5 text-violet-400" />
-            <span>Audio Engine Status</span>
+    <aside className="hidden md:flex w-[240px] shrink-0 flex-col gap-2 select-none h-full">
+      {/* Top Box: Branding & Main Navigation */}
+      <div className="bg-[#121212] rounded-lg p-5 flex flex-col gap-5">
+        {/* Brand Logo */}
+        <Link href="/" className="flex items-center gap-2.5 group">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#1DB954] text-black shadow-lg shadow-[#1DB954]/20 group-hover:scale-105 transition-transform">
+            <Activity className="h-5 w-5 stroke-[2.5]" />
           </div>
-          <ul className="mt-2.5 space-y-1.5 text-[11px] text-zinc-400">
-            <li className="flex items-center justify-between">
-              <span>HTML5 Audio Singleton</span>
-              <span className="text-emerald-400 font-mono">Active</span>
-            </li>
-            <li className="flex items-center justify-between">
-              <span>Queue Length</span>
-              <span className="text-emerald-400 font-mono">
-                {queue.length} tracks
-              </span>
-            </li>
-            <li className="flex items-center justify-between">
-              <span>Queue Position</span>
-              <span className="text-emerald-400 font-mono">
-                {queueIndex >= 0 ? `#${queueIndex + 1}` : "None"}
-              </span>
-            </li>
-            <li className="flex items-center justify-between">
-              <span>Playback State</span>
-              <span className="text-violet-400 font-mono">
-                {isPlaying ? "Playing" : "Paused"}
-              </span>
-            </li>
-          </ul>
-        </div>
+          <span className="font-bold text-xl tracking-tight text-white">
+            BeatSync
+          </span>
+        </Link>
+
+        {/* Primary Nav Links */}
+        <nav className="flex flex-col gap-3 pt-1">
+          <Link
+            href="/"
+            className={`flex items-center gap-4 text-sm font-bold transition-colors ${
+              pathname === "/"
+                ? "text-white"
+                : "text-[#B3B3B3] hover:text-white"
+            }`}
+          >
+            <Home className="h-6 w-6 shrink-0" />
+            <span>Home</span>
+          </Link>
+
+          <Link
+            href="/?search=focus"
+            className={`flex items-center gap-4 text-sm font-bold transition-colors ${
+              pathname === "/search"
+                ? "text-white"
+                : "text-[#B3B3B3] hover:text-white"
+            }`}
+          >
+            <Search className="h-6 w-6 shrink-0" />
+            <span>Search</span>
+          </Link>
+        </nav>
       </div>
 
-      {/* Footer Info */}
-      <div className="rounded-lg bg-zinc-900/80 p-3 text-xs text-zinc-400 border border-zinc-800">
-        <p className="text-zinc-300 font-medium">BeatSync Audio</p>
-        <p className="mt-1 text-[11px] leading-relaxed text-zinc-500">
-          Playback stays active across all navigation. Up Next queue and favorites sync automatically.
-        </p>
+      {/* Bottom Box: Your Library */}
+      <div className="bg-[#121212] rounded-lg p-4 flex-1 flex flex-col overflow-hidden">
+        {/* Library Header */}
+        <div className="flex items-center justify-between px-2 py-1 text-[#B3B3B3] hover:text-white transition-colors cursor-pointer group">
+          <div className="flex items-center gap-3">
+            <Library className="h-6 w-6 shrink-0 group-hover:text-white transition-colors" />
+            <span className="font-bold text-sm">Your Library</span>
+          </div>
+          <button
+            aria-label="Create playlist or folder"
+            className="rounded-full p-1 text-[#B3B3B3] hover:text-white hover:bg-[#282828] transition-colors cursor-pointer"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Scrollable Library List */}
+        <div className="mt-3 flex-1 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+          {/* Liked Songs Tile */}
+          <Link
+            href="/liked"
+            className={`flex items-center gap-3.5 p-2 rounded-md transition-colors cursor-pointer ${
+              pathname === "/liked"
+                ? "bg-[#282828] text-white"
+                : "hover:bg-[#1a1a1a] text-[#B3B3B3] hover:text-white"
+            }`}
+          >
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded bg-gradient-to-br from-indigo-600 via-purple-600 to-rose-400 text-white shadow-md">
+              <Heart className="h-5 w-5 fill-white" />
+            </div>
+            <div className="min-w-0 flex-1 truncate">
+              <p
+                className={`text-sm font-semibold truncate ${
+                  pathname === "/liked" ? "text-[#1DB954]" : "text-white"
+                }`}
+              >
+                Liked Songs
+              </p>
+              <p className="text-xs text-[#B3B3B3] truncate mt-0.5">
+                Playlist • {likedCount} {likedCount === 1 ? "song" : "songs"}
+              </p>
+            </div>
+          </Link>
+
+          {/* Quick Playlists */}
+          {quickPlaylists.map((pl, idx) => (
+            <Link
+              key={idx}
+              href={pl.href}
+              className="flex items-center gap-3.5 p-2 rounded-md transition-colors hover:bg-[#1a1a1a] text-[#B3B3B3] hover:text-white group cursor-pointer"
+            >
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded bg-[#282828] text-[#B3B3B3] group-hover:text-white transition-colors">
+                <Disc3 className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 flex-1 truncate">
+                <p className="text-sm font-medium text-white truncate group-hover:text-[#1DB954] transition-colors">
+                  {pl.title}
+                </p>
+                <p className="text-xs text-[#B3B3B3] truncate mt-0.5">
+                  {pl.subtitle}
+                </p>
+              </div>
+            </Link>
+          ))}
+        </div>
+
+        {/* Small Engine Status Pill at bottom of library */}
+        <div className="mt-auto pt-3 border-t border-[#282828] px-2 text-[11px] text-[#B3B3B3] flex items-center justify-between">
+          <span className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-[#1DB954] animate-pulse" />
+            Engine Online
+          </span>
+          <span className="font-mono">{queue.length} in queue</span>
+        </div>
       </div>
     </aside>
   );

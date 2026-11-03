@@ -42,8 +42,8 @@ export function LikeButton({
         size={size}
         className={`transition-all duration-200 ${
           liked
-            ? "text-rose-500 fill-rose-500 scale-110 drop-shadow-[0_0_8px_rgba(244,63,94,0.35)]"
-            : "text-zinc-400 hover:text-white hover:scale-105"
+            ? "text-[#1DB954] fill-[#1DB954] scale-110 drop-shadow-[0_0_8px_rgba(29,185,84,0.4)]"
+            : "text-[#B3B3B3] hover:text-white hover:scale-105"
         }`}
       />
     </button>

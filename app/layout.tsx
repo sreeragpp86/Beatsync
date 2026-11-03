@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { Sidebar } from "@/components/Sidebar";
 import { PlayerBar } from "@/components/PlayerBar";
 
 const geistSans = Geist({
@@ -14,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "BeatSync - Modern Music Streaming",
-  description: "Lightweight, high-contrast modern music streaming web app.",
+  title: "BeatSync - Web Player: Music for everyone",
+  description: "Spotify-inspired high performance music streaming web application.",
 };
 
 export default function RootLayout({
@@ -28,9 +29,23 @@ export default function RootLayout({
       lang="en"
       className={`dark ${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-zinc-950 text-zinc-100 selection:bg-emerald-500 selection:text-zinc-950">
-        <main className="flex-1 pb-24">{children}</main>
-        <PlayerBar />
+      <body className="h-full overflow-hidden bg-[#000000] text-white selection:bg-[#1DB954] selection:text-black font-sans">
+        {/* Main Application Container */}
+        <div className="flex h-screen flex-col overflow-hidden bg-[#000000]">
+          {/* Main Workspace (Sidebar + Scrollable Panel) */}
+          <div className="flex flex-1 overflow-hidden p-2 gap-2 pb-0">
+            {/* Spotify 240px Sidebar */}
+            <Sidebar />
+
+            {/* Spotify Main Content Panel */}
+            <main className="flex-1 bg-[#121212] rounded-lg overflow-y-auto relative flex flex-col mb-[88px] shadow-2xl">
+              {children}
+            </main>
+          </div>
+
+          {/* Persistent Fixed Bottom Player Dock (88px) */}
+          <PlayerBar />
+        </div>
       </body>
     </html>
   );

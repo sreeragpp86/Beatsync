@@ -38,20 +38,19 @@ export function TrackTable({
   };
 
   return (
-    <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/30">
+    <div className="overflow-hidden rounded-md select-none">
       {/* Table Header */}
-      <div className="grid grid-cols-12 gap-2 border-b border-zinc-800/80 px-4 py-3 text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+      <div className="grid grid-cols-12 gap-4 border-b border-[#282828] px-4 py-2.5 text-xs font-semibold text-[#B3B3B3] uppercase tracking-wider">
         <div className="col-span-1 text-center">#</div>
-        <div className="col-span-6 sm:col-span-5">Title & Artist</div>
+        <div className="col-span-6 sm:col-span-5">Title</div>
         <div className="hidden sm:block sm:col-span-4">Album</div>
-        <div className="col-span-5 sm:col-span-2 text-right flex items-center justify-end gap-1">
-          <Clock className="h-3 w-3" />
-          <span>Duration</span>
+        <div className="col-span-5 sm:col-span-2 text-right flex items-center justify-end gap-1.5 pr-2">
+          <Clock className="h-3.5 w-3.5" />
         </div>
       </div>
 
       {/* Track Rows */}
-      <div className="divide-y divide-zinc-800/50">
+      <div className="mt-1 space-y-0.5">
         {tracks.map((track, index) => {
           const isActive = currentTrack?.id === track.id;
           const isTrackPlaying = isActive && isPlaying;
@@ -60,38 +59,38 @@ export function TrackTable({
             <div
               key={track.id}
               onClick={() => handleRowClick(track, index)}
-              className={`group grid grid-cols-12 items-center gap-2 px-4 py-3 cursor-pointer transition-colors ${
+              className={`group grid grid-cols-12 items-center gap-4 px-4 py-2 rounded-md cursor-pointer transition-colors ${
                 isActive
-                  ? "bg-emerald-500/10 text-zinc-100"
-                  : "hover:bg-zinc-800/40 text-zinc-300"
+                  ? "bg-[#282828] text-white"
+                  : "hover:bg-[#282828]/60 text-[#B3B3B3] hover:text-white"
               }`}
             >
-              {/* Track Index or Playing Waveform */}
+              {/* Track Index or Playing Indicator */}
               <div className="col-span-1 text-center">
                 {isTrackPlaying ? (
                   <div className="flex items-end justify-center gap-0.5 h-3.5 mx-auto">
-                    <span className="w-0.5 bg-emerald-400 rounded-full animate-waveform-1" />
-                    <span className="w-0.5 bg-emerald-400 rounded-full animate-waveform-2" />
-                    <span className="w-0.5 bg-emerald-400 rounded-full animate-waveform-3" />
-                    <span className="w-0.5 bg-emerald-400 rounded-full animate-waveform-4" />
+                    <span className="w-0.5 bg-[#1DB954] rounded-full animate-waveform-1" />
+                    <span className="w-0.5 bg-[#1DB954] rounded-full animate-waveform-2" />
+                    <span className="w-0.5 bg-[#1DB954] rounded-full animate-waveform-3" />
+                    <span className="w-0.5 bg-[#1DB954] rounded-full animate-waveform-4" />
                   </div>
                 ) : (
                   <div className="relative flex items-center justify-center">
                     <span
-                      className={`text-xs font-mono group-hover:opacity-0 ${
-                        isActive ? "text-emerald-400 font-bold" : "text-zinc-500"
+                      className={`text-sm font-mono group-hover:opacity-0 ${
+                        isActive ? "text-[#1DB954] font-bold" : "text-[#B3B3B3]"
                       }`}
                     >
                       {index + 1}
                     </span>
-                    <Play className="absolute h-3.5 w-3.5 text-zinc-100 fill-zinc-100 opacity-0 group-hover:opacity-100 transition-opacity ml-0.5" />
+                    <Play className="absolute h-3.5 w-3.5 text-white fill-white opacity-0 group-hover:opacity-100 transition-opacity ml-0.5" />
                   </div>
                 )}
               </div>
 
               {/* Cover Art + Title + Artist */}
-              <div className="col-span-6 sm:col-span-5 flex items-center gap-3 min-w-0">
-                <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-zinc-800 shadow-inner">
+              <div className="col-span-6 sm:col-span-5 flex items-center gap-3.5 min-w-0">
+                <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded bg-[#282828] shadow-sm">
                   {track.cover_url ? (
                     <Image
                       src={track.cover_url}
@@ -101,7 +100,7 @@ export function TrackTable({
                       className="object-cover"
                     />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center text-zinc-500">
+                    <div className="flex h-full w-full items-center justify-center text-[#B3B3B3]">
                       <Music2 className="h-4 w-4" />
                     </div>
                   )}
@@ -109,58 +108,33 @@ export function TrackTable({
                 <div className="min-w-0 flex-1 truncate">
                   <p
                     className={`text-sm font-medium truncate ${
-                      isActive
-                        ? "text-emerald-400"
-                        : "text-zinc-100 group-hover:text-white"
+                      isActive ? "text-[#1DB954]" : "text-white"
                     }`}
                   >
                     {track.title}
                   </p>
-                  <p className="text-xs text-zinc-400 truncate">
+                  <p className="text-xs text-[#B3B3B3] truncate group-hover:text-white mt-0.5">
                     {track.artist}
                   </p>
                 </div>
               </div>
 
               {/* Album */}
-              <div className="hidden sm:block sm:col-span-4 min-w-0 truncate text-xs text-zinc-400">
+              <div className="hidden sm:block sm:col-span-4 min-w-0 truncate text-xs text-[#B3B3B3]">
                 {track.album || "—"}
               </div>
 
-              {/* Like Button, Duration & Play Action */}
-              <div className="col-span-5 sm:col-span-2 flex items-center justify-end gap-2 text-right">
+              {/* Like Button & Duration */}
+              <div className="col-span-5 sm:col-span-2 flex items-center justify-end gap-3 text-right pr-2">
                 <LikeButton trackId={track.id} size={15} />
 
                 <span
-                  className={`text-xs font-mono ${
-                    isActive ? "text-emerald-400 font-medium" : "text-zinc-400"
+                  className={`text-xs font-mono tabular-nums ${
+                    isActive ? "text-[#1DB954]" : "text-[#B3B3B3]"
                   }`}
                 >
                   {formatTime(track.duration)}
                 </span>
-
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleRowClick(track, index);
-                  }}
-                  className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors cursor-pointer ${
-                    isActive
-                      ? "bg-emerald-500 text-zinc-950"
-                      : "bg-zinc-800 text-zinc-400 opacity-0 group-hover:opacity-100 hover:bg-emerald-500 hover:text-zinc-950"
-                  }`}
-                  aria-label={
-                    isTrackPlaying
-                      ? `Pause ${track.title}`
-                      : `Play ${track.title}`
-                  }
-                >
-                  {isTrackPlaying ? (
-                    <Pause className="h-3.5 w-3.5 fill-current" />
-                  ) : (
-                    <Play className="h-3.5 w-3.5 fill-current ml-0.5" />
-                  )}
-                </button>
               </div>
             </div>
           );
