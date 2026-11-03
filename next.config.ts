@@ -20,6 +20,30 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "*.archive.org",
       },
+      {
+        protocol: "https",
+        hostname: "i.ytimg.com",
+      },
+      {
+        protocol: "https",
+        hostname: "*.ytimg.com",
+      },
+      {
+        protocol: "https",
+        hostname: "*.googleusercontent.com",
+      },
+      {
+        protocol: "https",
+        hostname: "*.ducks.party",
+      },
+      {
+        protocol: "https",
+        hostname: "*.private.coffee",
+      },
+      {
+        protocol: "https",
+        hostname: "*.kavin.rocks",
+      },
     ],
   },
   turbopack: {
