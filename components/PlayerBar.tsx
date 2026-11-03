@@ -11,12 +11,11 @@ import {
   Volume1,
   VolumeX,
   Music2,
-  Heart,
   ListMusic,
 } from "lucide-react";
 import { useAudioStore } from "@/stores/useAudioStore";
-import { useLikesStore } from "@/stores/useLikesStore";
 import { QueueDrawer } from "@/components/QueueDrawer";
+import { LikeButton } from "@/components/LikeButton";
 
 function formatTime(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
@@ -40,8 +39,6 @@ export function PlayerBar() {
     toggleQueue,
     isQueueOpen,
   } = useAudioStore();
-
-  const { isLiked, toggleLike } = useLikesStore();
 
   const [isDragging, setIsDragging] = useState(false);
   const [dragTime, setDragTime] = useState(0);
@@ -172,19 +169,7 @@ export function PlayerBar() {
         </div>
 
         {currentTrack && (
-          <button
-            onClick={() => toggleLike(currentTrack.id)}
-            aria-label={isLiked(currentTrack.id) ? "Unlike track" : "Like track"}
-            className="p-1 rounded text-zinc-400 hover:text-emerald-400 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-400 cursor-pointer"
-          >
-            <Heart
-              className={`h-4 w-4 transition-transform active:scale-125 ${
-                isLiked(currentTrack.id)
-                  ? "fill-emerald-400 text-emerald-400"
-                  : "text-zinc-400 hover:text-zinc-200"
-              }`}
-            />
-          </button>
+          <LikeButton trackId={currentTrack.id} size={18} />
         )}
       </div>
 
