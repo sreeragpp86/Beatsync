@@ -10,6 +10,7 @@ import {
   GripVertical,
   Music2,
   Radio,
+  Loader2,
 } from "lucide-react";
 import { useAudioStore } from "@/stores/useAudioStore";
 
@@ -24,6 +25,7 @@ export function QueueDrawer() {
   const {
     currentTrack,
     isPlaying,
+    isAutoQueueLoading,
     queue,
     queueIndex,
     isQueueOpen,
@@ -195,7 +197,15 @@ export function QueueDrawer() {
           {/* UP NEXT SECTION */}
           <div>
             <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-[#B3B3B3] mb-2.5">
-              <span>Up Next</span>
+              <div className="flex items-center gap-2">
+                <span>Up Next</span>
+                {isAutoQueueLoading && (
+                  <span className="flex items-center gap-1 normal-case text-[11px] font-medium text-[#1DB954] bg-[#1DB954]/10 px-2 py-0.5 rounded-full">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Finding similar songs...
+                  </span>
+                )}
+              </div>
               <span className="text-[11px] font-mono text-[#757575] font-normal">
                 {upcomingTracks.length} upcoming
               </span>

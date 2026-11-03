@@ -5,6 +5,8 @@ export interface AudioState {
   // State
   currentTrack: Track | null;
   isPlaying: boolean;
+  isLoadingStream: boolean;
+  isAutoQueueLoading: boolean;
   currentTime: number;
   duration: number;
   volume: number;
@@ -16,9 +18,10 @@ export interface AudioState {
   // Actions
   setToastMessage: (msg: string | null) => void;
   setQueue: (tracks: Track[], startIndex?: number) => void;
-  playTrack: (track: Track) => void;
-  playQueueIndex: (index: number) => void;
-  playWithAutoQueue: (selectedTrack: Track, allAvailableTracks: Track[]) => void;
+  playTrack: (track: Track) => Promise<void>;
+  playQueueIndex: (index: number) => Promise<void>;
+  playWithAutoQueue: (selectedTrack: Track, allAvailableTracks: Track[]) => Promise<void>;
+  fetchAutoQueue: (track: Track) => Promise<void>;
   clearQueue: () => void;
   removeFromQueue: (index: number) => void;
   reorderQueue: (fromIndex: number, toIndex: number) => void;
@@ -46,6 +49,33 @@ const getAudioElement = (): HTMLAudioElement | null => {
   }
 
   return audioInstance;
+};
+
+// Helper: resolve stream URL for track
+const resolveAudioStreamUrl = async (track: Track): Promise<string> => {
+  // If track already has direct external audio URL, use it directly
+  if (
+    track.audio_url &&
+    track.audio_url.startsWith('http') &&
+    !track.audio_url.includes('/api/stream')
+  ) {
+    return track.audio_url;
+  }
+
+  try {
+    const res = await fetch(`/api/stream?id=${encodeURIComponent(track.id)}&json=true`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.streamUrl) {
+        return data.streamUrl;
+      }
+    }
+  } catch (err) {
+    console.warn('[BeatSync Audio] Error resolving direct stream URL:', err);
+  }
+
+  // Fallback to streaming proxy route
+  return `/api/stream?id=${encodeURIComponent(track.id)}`;
 };
 
 export const useAudioStore = create<AudioState>((set, get) => {
@@ -85,9 +115,10 @@ export const useAudioStore = create<AudioState>((set, get) => {
       });
 
       audio.addEventListener('error', (e) => {
-        console.error('[SoundWave Audio] Error playing audio:', e);
+        console.error('[BeatSync Audio] Error playing audio:', e);
         set({
           isPlaying: false,
+          isLoadingStream: false,
           toastMessage: 'Unable to stream this track. Skipping...',
         });
         const currentQueue = get().queue;
@@ -103,6 +134,8 @@ export const useAudioStore = create<AudioState>((set, get) => {
   return {
     currentTrack: null,
     isPlaying: false,
+    isLoadingStream: false,
+    isAutoQueueLoading: false,
     currentTime: 0,
     duration: 0,
     volume: 0.8,
@@ -114,6 +147,46 @@ export const useAudioStore = create<AudioState>((set, get) => {
     setToastMessage: (msg: string | null) => set({ toastMessage: msg }),
     toggleQueue: () => set((state) => ({ isQueueOpen: !state.isQueueOpen })),
     setIsQueueOpen: (open: boolean) => set({ isQueueOpen: open }),
+
+    fetchAutoQueue: async (track: Track) => {
+      if (!track || get().isAutoQueueLoading) return;
+
+      set({ isAutoQueueLoading: true });
+      try {
+        const params = new URLSearchParams({
+          id: track.id,
+          artist: track.artist || '',
+          title: track.title || '',
+        });
+
+        const res = await fetch(`/api/related?${params.toString()}`);
+        if (res.ok) {
+          const data = await res.json();
+          const relatedTracks: Track[] = data.tracks || [];
+
+          if (relatedTracks.length > 0) {
+            const { queue, queueIndex } = get();
+            const existingIds = new Set(queue.map((t) => t.id));
+            const newTracks = relatedTracks.filter((t) => !existingIds.has(t.id));
+
+            if (newTracks.length > 0) {
+              const insertPos = queueIndex >= 0 ? queueIndex + 1 : queue.length;
+              const newQueue = [
+                ...queue.slice(0, insertPos),
+                ...newTracks,
+                ...queue.slice(insertPos),
+              ];
+
+              set({ queue: newQueue });
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[BeatSync Audio] Failed to fetch auto-queue related tracks:', err);
+      } finally {
+        set({ isAutoQueueLoading: false });
+      }
+    },
 
     setQueue: (tracks: Track[], startIndex = 0) => {
       if (!tracks || tracks.length === 0) {
@@ -128,6 +201,7 @@ export const useAudioStore = create<AudioState>((set, get) => {
           queueIndex: -1,
           currentTrack: null,
           isPlaying: false,
+          isLoadingStream: false,
           currentTime: 0,
           duration: 0,
         });
@@ -135,7 +209,6 @@ export const useAudioStore = create<AudioState>((set, get) => {
       }
 
       const validIndex = Math.max(0, Math.min(startIndex, tracks.length - 1));
-      const targetTrack = tracks[validIndex];
 
       set({
         queue: tracks,
@@ -145,7 +218,7 @@ export const useAudioStore = create<AudioState>((set, get) => {
       get().playQueueIndex(validIndex);
     },
 
-    playTrack: (track: Track) => {
+    playTrack: async (track: Track) => {
       const audio = getAudioElement();
       const currentQueue = get().queue;
 
@@ -164,38 +237,50 @@ export const useAudioStore = create<AudioState>((set, get) => {
         queueIndex: newIndex,
         duration: track.duration || 0,
         currentTime: 0,
+        isLoadingStream: true,
       });
 
       if (audio) {
-        if (audio.src !== track.audio_url) {
-          audio.src = track.audio_url;
-          audio.currentTime = 0;
-          audio.load();
-        }
+        try {
+          const streamUrl = await resolveAudioStreamUrl(track);
+          if (audio.src !== streamUrl) {
+            audio.src = streamUrl;
+            audio.currentTime = 0;
+            audio.load();
+          }
 
-        const playPromise = audio.play();
-        if (playPromise !== undefined) {
-          playPromise
-            .then(() => {
-              set({ isPlaying: true });
-            })
-            .catch((error) => {
-              if (error.name !== 'AbortError') {
-                console.warn('[SoundWave Audio] Playback prevented:', error);
-                if (error.name !== 'NotAllowedError') {
-                  set({ toastMessage: 'Unable to stream this track. Skipping...' });
-                  if (get().queue.length > 1) {
-                    setTimeout(() => get().playNext(), 1500);
+          const playPromise = audio.play();
+          if (playPromise !== undefined) {
+            playPromise
+              .then(() => {
+                set({ isPlaying: true, isLoadingStream: false });
+              })
+              .catch((error) => {
+                if (error.name !== 'AbortError') {
+                  console.warn('[BeatSync Audio] Playback prevented:', error);
+                  if (error.name !== 'NotAllowedError') {
+                    set({ toastMessage: 'Unable to stream this track. Skipping...' });
+                    if (get().queue.length > 1) {
+                      setTimeout(() => get().playNext(), 1500);
+                    }
                   }
                 }
-              }
-              set({ isPlaying: false });
-            });
+                set({ isPlaying: false, isLoadingStream: false });
+              });
+          }
+        } catch (err) {
+          console.warn('[BeatSync Audio] Stream resolution failed:', err);
+          set({ isLoadingStream: false, isPlaying: false });
         }
+      } else {
+        set({ isLoadingStream: false });
       }
+
+      // Background task: fetch 10-15 similar songs and append into queue (Song Radio)
+      get().fetchAutoQueue(track);
     },
 
-    playQueueIndex: (index: number) => {
+    playQueueIndex: async (index: number) => {
       const { queue } = get();
       if (!queue || index < 0 || index >= queue.length) return;
 
@@ -206,126 +291,108 @@ export const useAudioStore = create<AudioState>((set, get) => {
         currentTrack: targetTrack,
         currentTime: 0,
         duration: targetTrack.duration || 0,
+        isLoadingStream: true,
       });
 
       const audio = getAudioElement();
       if (audio) {
-        if (audio.src !== targetTrack.audio_url) {
-          audio.src = targetTrack.audio_url;
-          audio.currentTime = 0;
-          audio.load();
-        }
+        try {
+          const streamUrl = await resolveAudioStreamUrl(targetTrack);
+          if (audio.src !== streamUrl) {
+            audio.src = streamUrl;
+            audio.currentTime = 0;
+            audio.load();
+          }
 
-        const playPromise = audio.play();
-        if (playPromise !== undefined) {
-          playPromise
-            .then(() => {
-              set({ isPlaying: true });
-            })
-            .catch((error) => {
-              if (error.name !== 'AbortError') {
-                console.warn('[SoundWave Audio] Playback prevented:', error);
-                if (error.name !== 'NotAllowedError') {
-                  set({ toastMessage: 'Unable to stream this track. Skipping...' });
-                  if (get().queue.length > 1) {
-                    setTimeout(() => get().playNext(), 1500);
+          const playPromise = audio.play();
+          if (playPromise !== undefined) {
+            playPromise
+              .then(() => {
+                set({ isPlaying: true, isLoadingStream: false });
+              })
+              .catch((error) => {
+                if (error.name !== 'AbortError') {
+                  console.warn('[BeatSync Audio] Playback prevented:', error);
+                  if (error.name !== 'NotAllowedError') {
+                    set({ toastMessage: 'Unable to stream this track. Skipping...' });
+                    if (get().queue.length > 1) {
+                      setTimeout(() => get().playNext(), 1500);
+                    }
                   }
                 }
-              }
-              set({ isPlaying: false });
-            });
+                set({ isPlaying: false, isLoadingStream: false });
+              });
+          }
+        } catch (err) {
+          console.warn('[BeatSync Audio] Stream resolution failed:', err);
+          set({ isLoadingStream: false, isPlaying: false });
         }
+      } else {
+        set({ isLoadingStream: false });
+      }
+
+      // If queue has fewer than 2 songs left, automatically fetch and append more related tracks
+      if (index >= queue.length - 2) {
+        get().fetchAutoQueue(targetTrack);
       }
     },
 
-    playWithAutoQueue: (selectedTrack: Track, allAvailableTracks: Track[]) => {
+    playWithAutoQueue: async (selectedTrack: Track, allAvailableTracks: Track[]) => {
       if (!selectedTrack) return;
 
-      // 1. Filter candidates excluding selectedTrack
+      // Filter initial candidates excluding selectedTrack
       const candidates = (allAvailableTracks || []).filter(
         (t) => t.id !== selectedTrack.id
       );
 
-      // 2. Prioritize tracks sharing artist, genre, or album
-      const matching = candidates.filter((t) => {
-        const sameArtist =
-          t.artist.trim().toLowerCase() === selectedTrack.artist.trim().toLowerCase();
-        const sameGenre = Boolean(
-          t.genre &&
-            selectedTrack.genre &&
-            t.genre.trim().toLowerCase() === selectedTrack.genre.trim().toLowerCase()
-        );
-        const sameAlbum = Boolean(
-          t.album &&
-            selectedTrack.album &&
-            t.album.trim().toLowerCase() === selectedTrack.album.trim().toLowerCase()
-        );
-        return sameArtist || sameGenre || sameAlbum;
-      });
-
-      const nonMatching = candidates.filter((t) => !matching.includes(t));
-
-      // 3. Randomized shuffle of remaining non-matching tracks
-      const shuffledNonMatching = [...nonMatching];
-      for (let i = shuffledNonMatching.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [shuffledNonMatching[i], shuffledNonMatching[j]] = [
-          shuffledNonMatching[j],
-          shuffledNonMatching[i],
-        ];
-      }
-
-      const prioritizedPool = [...matching, ...shuffledNonMatching];
-
-      // 4. Target auto-queue length: 10 to 20 tracks
-      let generatedQueue: Track[] = [selectedTrack, ...prioritizedPool];
-
-      // Pad queue if catalog is smaller than 10 tracks
-      if (generatedQueue.length > 1 && generatedQueue.length < 10) {
-        const cyclePool = [...prioritizedPool, selectedTrack];
-        let idx = 0;
-        while (generatedQueue.length < 12 && cyclePool.length > 0) {
-          generatedQueue.push(cyclePool[idx % cyclePool.length]);
-          idx++;
-        }
-      }
-
-      const finalQueue = generatedQueue.slice(0, 20);
+      const initialQueue = [selectedTrack, ...candidates.slice(0, 15)];
 
       set({
-        queue: finalQueue,
+        queue: initialQueue,
         queueIndex: 0,
         currentTrack: selectedTrack,
         currentTime: 0,
         duration: selectedTrack.duration || 0,
+        isLoadingStream: true,
       });
 
       const audio = getAudioElement();
       if (audio) {
-        if (audio.src !== selectedTrack.audio_url) {
-          audio.src = selectedTrack.audio_url;
-          audio.currentTime = 0;
-          audio.load();
-        }
+        try {
+          const streamUrl = await resolveAudioStreamUrl(selectedTrack);
+          if (audio.src !== streamUrl) {
+            audio.src = streamUrl;
+            audio.currentTime = 0;
+            audio.load();
+          }
 
-        const playPromise = audio.play();
-        if (playPromise !== undefined) {
-          playPromise
-            .then(() => set({ isPlaying: true }))
-            .catch((err) => {
-              if (err.name !== 'AbortError') {
-                console.warn('[SoundWave Audio] Autoplay prevented:', err);
-                if (err.name !== 'NotAllowedError') {
-                  set({ toastMessage: 'Unable to stream this track. Skipping...' });
-                  if (get().queue.length > 1) {
-                    setTimeout(() => get().playNext(), 1500);
+          const playPromise = audio.play();
+          if (playPromise !== undefined) {
+            playPromise
+              .then(() => set({ isPlaying: true, isLoadingStream: false }))
+              .catch((err) => {
+                if (err.name !== 'AbortError') {
+                  console.warn('[BeatSync Audio] Autoplay prevented:', err);
+                  if (err.name !== 'NotAllowedError') {
+                    set({ toastMessage: 'Unable to stream this track. Skipping...' });
+                    if (get().queue.length > 1) {
+                      setTimeout(() => get().playNext(), 1500);
+                    }
                   }
                 }
-              }
-              set({ isPlaying: false });
-            });
+                set({ isPlaying: false, isLoadingStream: false });
+              });
+          }
+        } catch (err) {
+          console.warn('[BeatSync Audio] Stream resolution failed:', err);
+          set({ isLoadingStream: false, isPlaying: false });
         }
+      } else {
+        set({ isLoadingStream: false });
       }
+
+      // Enrich queue with Song Radio related tracks
+      get().fetchAutoQueue(selectedTrack);
     },
 
     clearQueue: () => {
@@ -417,10 +484,6 @@ export const useAudioStore = create<AudioState>((set, get) => {
           audio.pause();
           set({ isPlaying: false });
         } else {
-          if (!audio.src || audio.src === '' || audio.src !== currentTrack.audio_url) {
-            audio.src = currentTrack.audio_url;
-            audio.load();
-          }
           const playPromise = audio.play();
           if (playPromise !== undefined) {
             playPromise
@@ -429,7 +492,7 @@ export const useAudioStore = create<AudioState>((set, get) => {
               })
               .catch((error) => {
                 if (error.name !== 'AbortError') {
-                  console.warn('[SoundWave Audio] Playback prevented:', error);
+                  console.warn('[BeatSync Audio] Playback prevented:', error);
                 }
                 set({ isPlaying: false });
               });
@@ -450,7 +513,7 @@ export const useAudioStore = create<AudioState>((set, get) => {
         try {
           audio.currentTime = targetTime;
         } catch (err) {
-          console.warn('[SoundWave Audio] Error seeking:', err);
+          console.warn('[BeatSync Audio] Error seeking:', err);
         }
       }
 
@@ -469,11 +532,35 @@ export const useAudioStore = create<AudioState>((set, get) => {
     },
 
     playNext: () => {
-      const { queue, queueIndex } = get();
+      const { queue, queueIndex, currentTrack } = get();
       if (!queue || queue.length === 0) return;
 
-      const nextIndex = (queueIndex + 1) % queue.length;
-      get().playQueueIndex(nextIndex);
+      const nextIndex = queueIndex + 1;
+      if (nextIndex < queue.length) {
+        get().playQueueIndex(nextIndex);
+
+        // If queue has fewer than 2 songs left, automatically fetch and append more related tracks
+        if (nextIndex >= queue.length - 2) {
+          const current = queue[nextIndex];
+          if (current) {
+            get().fetchAutoQueue(current);
+          }
+        }
+      } else {
+        // Reached end of queue: fetch more related tracks or loop
+        if (currentTrack) {
+          get().fetchAutoQueue(currentTrack).then(() => {
+            const refreshedQueue = get().queue;
+            if (refreshedQueue.length > queueIndex + 1) {
+              get().playQueueIndex(queueIndex + 1);
+            } else {
+              get().playQueueIndex(0);
+            }
+          });
+        } else {
+          get().playQueueIndex(0);
+        }
+      }
     },
 
     playPrevious: () => {

@@ -12,6 +12,7 @@ import {
   VolumeX,
   Music2,
   ListMusic,
+  Loader2,
 } from "lucide-react";
 import { useAudioStore } from "@/stores/useAudioStore";
 import { QueueDrawer } from "@/components/QueueDrawer";
@@ -29,6 +30,7 @@ export function PlayerBar() {
   const {
     currentTrack,
     isPlaying,
+    isLoadingStream,
     currentTime,
     duration,
     volume,
@@ -190,11 +192,13 @@ export function PlayerBar() {
 
             <button
               onClick={togglePlay}
-              disabled={!currentTrack}
-              aria-label={isPlaying ? "Pause" : "Play"}
+              disabled={!currentTrack || isLoadingStream}
+              aria-label={isLoadingStream ? "Loading stream..." : isPlaying ? "Pause" : "Play"}
               className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-black shadow hover:scale-105 active:scale-95 transition-transform disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
             >
-              {isPlaying ? (
+              {isLoadingStream ? (
+                <Loader2 className="h-4 w-4 animate-spin text-black" />
+              ) : isPlaying ? (
                 <Pause className="h-4 w-4 fill-black" />
               ) : (
                 <Play className="h-4 w-4 fill-black ml-0.5" />
