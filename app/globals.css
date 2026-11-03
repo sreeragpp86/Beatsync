@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+:root {
+  --background: #09090b; /* zinc-950 */
+  --surface: #18181b;    /* zinc-900 */
+  --surface-raised: #27272a; /* zinc-800 */
+  --surface-border: #3f3f46; /* zinc-700 */
+  --foreground: #f4f4f5; /* zinc-100 */
+  --muted: #a1a1aa;      /* zinc-400 */
+  --accent-emerald: #10b981; /* emerald-500 */
+  --accent-emerald-hover: #059669; /* emerald-600 */
+  --accent-violet: #8b5cf6;  /* violet-500 */
+  --accent-violet-hover: #7c3aed;  /* violet-600 */
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-border: var(--surface-border);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-accent-emerald: var(--accent-emerald);
+  --color-accent-emerald-hover: var(--accent-emerald-hover);
+  --color-accent-violet: var(--accent-violet);
+  --color-accent-violet-hover: var(--accent-violet-hover);
+  --font-sans: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-geist-mono), monospace;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  color-scheme: dark;
+}
+
+/* Custom scrollbar for dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #09090b;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #27272a;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3f3f46;
+}
