@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import {
   Play,
@@ -15,6 +15,11 @@ import {
   Music2,
   ListMusic,
   Loader2,
+  Search,
+  X,
+  LayoutGrid,
+  List,
+  Clock,
 } from "lucide-react";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { getTracks } from "@/lib/tracks";
@@ -32,10 +37,8 @@ export default function Home() {
   const {
     currentTrack,
     isPlaying,
-    queue,
     queueIndex,
     setQueue,
-    playTrack,
     togglePlay,
   } = useAudioStore();
 
@@ -44,6 +47,8 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<"explore" | "library" | "radio">(
     "explore"
   );
+  const [searchQuery, setSearchQuery] = useState("");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
   // Load tracks via the data access layer
   useEffect(() => {
@@ -68,20 +73,40 @@ export default function Home() {
     };
   }, []);
 
-  const activeTrack = currentTrack ?? tracks[0] ?? null;
+  // Filter tracks by title, artist, or album
+  const filteredTracks = useMemo(() => {
+    if (!searchQuery.trim()) return tracks;
+    const query = searchQuery.toLowerCase().trim();
+    return tracks.filter(
+      (t) =>
+        t.title.toLowerCase().includes(query) ||
+        t.artist.toLowerCase().includes(query) ||
+        (t.album && t.album.toLowerCase().includes(query))
+    );
+  }, [tracks, searchQuery]);
 
-  const handleTrackSelect = (track: Track, index: number) => {
-    if (queue.length === 0 || queue !== tracks) {
-      setQueue(tracks, index);
+  const handleTrackClick = (track: Track, index: number) => {
+    if (currentTrack?.id === track.id) {
+      togglePlay();
     } else {
-      playTrack(track);
+      setQueue(filteredTracks, index);
+    }
+  };
+
+  const handlePlayAll = () => {
+    if (filteredTracks.length > 0) {
+      if (!currentTrack) {
+        setQueue(filteredTracks, 0);
+      } else {
+        togglePlay();
+      }
     }
   };
 
   return (
     <div className="flex flex-col min-h-full bg-zinc-950 text-zinc-100 font-sans">
       {/* Top Navbar */}
-      <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between border-b border-zinc-800/80 bg-zinc-950/80 px-6 backdrop-blur-md">
+      <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between border-b border-zinc-800/80 bg-zinc-950/80 px-4 md:px-8 backdrop-blur-md">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-500 to-violet-600 text-zinc-950 shadow-lg shadow-emerald-500/10">
             <Headphones className="h-5 w-5 text-zinc-950 stroke-[2.5]" />
@@ -104,7 +129,8 @@ export default function Home() {
           {isSupabaseConfigured ? (
             <>
               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-              <span>Supabase Connected</span>
+              <span className="hidden sm:inline">Supabase Connected</span>
+              <span className="sm:hidden">Connected</span>
             </>
           ) : (
             <>
@@ -129,7 +155,7 @@ export default function Home() {
               </p>
               <button
                 onClick={() => setActiveTab("explore")}
-                className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors cursor-pointer ${
                   activeTab === "explore"
                     ? "bg-zinc-800 text-emerald-400 shadow-sm"
                     : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
@@ -140,7 +166,7 @@ export default function Home() {
               </button>
               <button
                 onClick={() => setActiveTab("radio")}
-                className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors cursor-pointer ${
                   activeTab === "radio"
                     ? "bg-zinc-800 text-emerald-400 shadow-sm"
                     : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
@@ -151,7 +177,7 @@ export default function Home() {
               </button>
               <button
                 onClick={() => setActiveTab("library")}
-                className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors cursor-pointer ${
                   activeTab === "library"
                     ? "bg-zinc-800 text-emerald-400 shadow-sm"
                     : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
@@ -195,44 +221,37 @@ export default function Home() {
           </div>
 
           <div className="rounded-lg bg-zinc-900/80 p-3 text-xs text-zinc-400 border border-zinc-800">
-            <p className="text-zinc-300 font-medium">Controls</p>
+            <p className="text-zinc-300 font-medium">Quick Tip</p>
             <p className="mt-1 text-[11px] leading-relaxed">
-              Click any track to stream instantly. The persistent player bar at the bottom provides scrubbing, volume control, and auto-advance.
+              Click any track to stream instantly. The persistent player bar at the bottom supports uninterrupted seeking and volume control.
             </p>
           </div>
         </aside>
 
         {/* Content Area */}
-        <main className="flex-1 p-6 md:p-8">
-          {/* Hero Banner */}
-          <section className="relative overflow-hidden rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900 via-zinc-900 to-zinc-950 p-6 md:p-8 shadow-xl">
-            <div className="absolute -right-16 -top-16 h-64 w-64 rounded-full bg-emerald-500/10 blur-3xl" />
-            <div className="absolute -left-16 -bottom-16 h-64 w-64 rounded-full bg-violet-600/10 blur-3xl" />
+        <main className="flex-1 p-4 md:p-8 space-y-8 max-w-7xl mx-auto w-full">
+          {/* Hero Section with ambient gradient */}
+          <section className="relative overflow-hidden rounded-2xl border border-zinc-800/80 bg-gradient-to-br from-zinc-900/90 via-zinc-950 to-zinc-900 p-6 md:p-8 shadow-2xl">
+            {/* Ambient Lighting Gradients */}
+            <div className="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-emerald-500/15 blur-3xl pointer-events-none" />
+            <div className="absolute -left-20 -bottom-20 h-72 w-72 rounded-full bg-violet-600/15 blur-3xl pointer-events-none" />
 
-            <div className="relative z-10 max-w-xl">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-400 border border-emerald-500/30">
-                <Music2 className="h-3 w-3" />
-                Featured Playlist
+            <div className="relative z-10 max-w-2xl">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-400 border border-emerald-500/20 backdrop-blur-sm">
+                <Music2 className="h-3.5 w-3.5" />
+                Featured Catalog
               </span>
               <h1 className="mt-3 text-3xl font-bold tracking-tight text-zinc-100 sm:text-4xl">
                 Experience music with zero friction.
               </h1>
               <p className="mt-2 text-sm text-zinc-400 leading-relaxed">
-                Stream public-domain masterworks through our reactive Zustand audio store, HTML5 singleton, and Supabase data layer.
+                Stream curated masterworks with our reactive Zustand audio engine, HTML5 singleton, and Supabase data layer.
               </p>
 
-              <div className="mt-5 flex items-center gap-3">
+              <div className="mt-6 flex flex-wrap items-center gap-3">
                 <button
-                  onClick={() => {
-                    if (tracks.length > 0) {
-                      if (!currentTrack) {
-                        setQueue(tracks, 0);
-                      } else {
-                        togglePlay();
-                      }
-                    }
-                  }}
-                  disabled={tracks.length === 0}
+                  onClick={handlePlayAll}
+                  disabled={filteredTracks.length === 0}
                   className="flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-zinc-950 shadow-lg shadow-emerald-500/25 transition-all hover:bg-emerald-400 active:scale-95 disabled:opacity-50 cursor-pointer"
                 >
                   {isPlaying ? (
@@ -249,9 +268,9 @@ export default function Home() {
                 </button>
                 <button
                   onClick={() => {
-                    if (tracks.length > 0) setQueue(tracks, 0);
+                    if (filteredTracks.length > 0) setQueue(filteredTracks, 0);
                   }}
-                  disabled={tracks.length === 0}
+                  disabled={filteredTracks.length === 0}
                   className="flex items-center gap-2 rounded-xl border border-zinc-700 bg-zinc-800/80 px-4 py-2.5 text-sm font-medium text-zinc-200 transition-colors hover:bg-zinc-800 hover:text-white disabled:opacity-50 cursor-pointer"
                 >
                   <ListMusic className="h-4 w-4 text-violet-400" />
@@ -261,89 +280,327 @@ export default function Home() {
             </div>
           </section>
 
-          {/* Track Grid */}
-          <section className="mt-8">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold tracking-tight text-zinc-100">
-                Trending Tracks
-              </h2>
-              <span className="text-xs text-zinc-400">
-                {isLoading ? "Fetching catalog..." : `${tracks.length} tracks available`}
-              </span>
+          {/* Search Bar & View Toggle */}
+          <section className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search tracks by title, artist, or album..."
+                className="w-full h-10 pl-10 pr-9 rounded-xl border border-zinc-800 bg-zinc-900/60 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/40 transition-colors"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-200"
+                  aria-label="Clear search"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
             </div>
 
-            {isLoading ? (
-              <div className="flex h-48 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/30">
-                <div className="flex items-center gap-2.5 text-sm text-zinc-400">
-                  <Loader2 className="h-5 w-5 animate-spin text-emerald-400" />
-                  <span>Loading music catalog...</span>
-                </div>
+            <div className="flex items-center justify-between sm:justify-end gap-3">
+              <span className="text-xs text-zinc-400 font-mono">
+                {isLoading
+                  ? "Loading tracks..."
+                  : searchQuery
+                  ? `${filteredTracks.length} of ${tracks.length} tracks`
+                  : `${tracks.length} tracks`}
+              </span>
+
+              {/* View Switcher: Grid vs List */}
+              <div className="flex items-center rounded-lg border border-zinc-800 bg-zinc-900/80 p-0.5">
+                <button
+                  onClick={() => setViewMode("grid")}
+                  aria-label="Grid view"
+                  className={`p-1.5 rounded-md transition-colors ${
+                    viewMode === "grid"
+                      ? "bg-zinc-800 text-emerald-400 shadow-sm"
+                      : "text-zinc-400 hover:text-zinc-200"
+                  }`}
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => setViewMode("list")}
+                  aria-label="List view"
+                  className={`p-1.5 rounded-md transition-colors ${
+                    viewMode === "list"
+                      ? "bg-zinc-800 text-emerald-400 shadow-sm"
+                      : "text-zinc-400 hover:text-zinc-200"
+                  }`}
+                >
+                  <List className="h-4 w-4" />
+                </button>
               </div>
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {tracks.map((track, index) => {
-                  const isSelected = activeTrack?.id === track.id;
+            </div>
+          </section>
+
+          {/* Track Discovery Catalog */}
+          <section>
+            {isLoading ? (
+              <div className="flex h-56 flex-col items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-900/30 gap-3">
+                <Loader2 className="h-6 w-6 animate-spin text-emerald-400" />
+                <span className="text-sm text-zinc-400">Loading music catalog...</span>
+              </div>
+            ) : filteredTracks.length === 0 ? (
+              <div className="flex h-56 flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/20 p-8 text-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-zinc-800/80 text-zinc-500 mb-3">
+                  <Music2 className="h-6 w-6" />
+                </div>
+                <p className="text-sm font-medium text-zinc-300">
+                  No tracks found matching &ldquo;{searchQuery}&rdquo;
+                </p>
+                <p className="text-xs text-zinc-500 mt-1 max-w-sm">
+                  Try searching with a different title, artist name, or clear the filter to view all available tracks.
+                </p>
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="mt-4 rounded-lg bg-zinc-800 px-3.5 py-1.5 text-xs font-medium text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors"
+                >
+                  Clear search query
+                </button>
+              </div>
+            ) : viewMode === "grid" ? (
+              /* GRID VIEW */
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {filteredTracks.map((track, index) => {
+                  const isActive = currentTrack?.id === track.id;
+                  const isTrackPlaying = isActive && isPlaying;
+
                   return (
                     <div
                       key={track.id}
-                      onClick={() => handleTrackSelect(track, index)}
-                      className={`group flex items-center justify-between rounded-xl border p-4 cursor-pointer transition-all ${
-                        isSelected
-                          ? "border-emerald-500/50 bg-zinc-900 shadow-md shadow-emerald-500/5"
-                          : "border-zinc-800/80 bg-zinc-900/50 hover:border-zinc-700 hover:bg-zinc-900"
+                      onClick={() => handleTrackClick(track, index)}
+                      className={`group relative flex flex-col justify-between rounded-xl border p-4 cursor-pointer transition-all duration-200 ${
+                        isActive
+                          ? "border-emerald-500/60 bg-zinc-900/90 shadow-lg shadow-emerald-500/10 ring-1 ring-emerald-500/30"
+                          : "border-zinc-800/80 bg-zinc-900/40 hover:border-zinc-700 hover:bg-zinc-900/80 hover:shadow-md"
                       }`}
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-zinc-800">
+                      <div className="flex items-start gap-3.5">
+                        {/* Artwork */}
+                        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-zinc-800 shadow-inner">
                           {track.cover_url ? (
                             <Image
                               src={track.cover_url}
                               alt={track.title}
                               fill
-                              sizes="48px"
-                              className="object-cover"
+                              sizes="64px"
+                              className="object-cover transition-transform duration-300 group-hover:scale-105"
                             />
                           ) : (
-                            <div className="flex h-full w-full items-center justify-center">
-                              <Music2 className="h-5 w-5 text-zinc-400" />
+                            <div className="flex h-full w-full items-center justify-center text-zinc-500">
+                              <Music2 className="h-6 w-6" />
                             </div>
                           )}
+
+                          {/* Hover Play / Waveform Overlay */}
                           <div
                             className={`absolute inset-0 flex items-center justify-center transition-opacity ${
-                              isSelected && isPlaying
+                              isTrackPlaying
                                 ? "bg-zinc-950/60 opacity-100"
                                 : "bg-zinc-950/40 opacity-0 group-hover:opacity-100"
                             }`}
                           >
-                            {isSelected && isPlaying ? (
-                              <Pause className="h-5 w-5 text-emerald-400 fill-emerald-400" />
+                            {isTrackPlaying ? (
+                              <Pause className="h-6 w-6 text-emerald-400 fill-emerald-400" />
                             ) : (
-                              <Play className="h-5 w-5 text-white fill-white ml-0.5" />
+                              <Play className="h-6 w-6 text-white fill-white ml-0.5" />
                             )}
                           </div>
                         </div>
-                        <div>
-                          <p className="text-sm font-medium text-zinc-100 line-clamp-1">
+
+                        {/* Title & Artist */}
+                        <div className="min-w-0 flex-1">
+                          <p
+                            className={`text-sm font-semibold truncate transition-colors ${
+                              isActive ? "text-emerald-400" : "text-zinc-100 group-hover:text-white"
+                            }`}
+                          >
                             {track.title}
                           </p>
-                          <p className="text-xs text-zinc-400 line-clamp-1">
+                          <p className="text-xs text-zinc-400 truncate mt-0.5">
                             {track.artist}
                           </p>
+                          {track.album && (
+                            <p className="text-[11px] text-zinc-500 truncate mt-0.5">
+                              {track.album}
+                            </p>
+                          )}
                         </div>
                       </div>
-                      <div className="text-right">
-                        <span className="text-xs font-mono text-zinc-400">
-                          {formatTime(track.duration)}
-                        </span>
-                        {track.album && (
-                          <span className="block text-[10px] text-zinc-400 mt-0.5 max-w-[100px] truncate">
-                            {track.album}
+
+                      {/* Card Bottom Meta */}
+                      <div className="mt-4 flex items-center justify-between border-t border-zinc-800/60 pt-3">
+                        <div className="flex items-center gap-2">
+                          {isActive && (
+                            <div className="flex items-end gap-0.5 h-3.5" title={isPlaying ? "Playing" : "Paused"}>
+                              {isTrackPlaying ? (
+                                <>
+                                  <span className="w-1 bg-emerald-400 rounded-full animate-waveform-1" />
+                                  <span className="w-1 bg-emerald-400 rounded-full animate-waveform-2" />
+                                  <span className="w-1 bg-emerald-400 rounded-full animate-waveform-3" />
+                                  <span className="w-1 bg-emerald-400 rounded-full animate-waveform-4" />
+                                </>
+                              ) : (
+                                <>
+                                  <span className="w-1 h-1.5 bg-emerald-400/50 rounded-full" />
+                                  <span className="w-1 h-3 bg-emerald-400/50 rounded-full" />
+                                  <span className="w-1 h-2 bg-emerald-400/50 rounded-full" />
+                                  <span className="w-1 h-1 bg-emerald-400/50 rounded-full" />
+                                </>
+                              )}
+                            </div>
+                          )}
+                          <span
+                            className={`text-xs font-mono ${
+                              isActive ? "text-emerald-400 font-medium" : "text-zinc-400"
+                            }`}
+                          >
+                            {formatTime(track.duration)}
                           </span>
-                        )}
+                        </div>
+
+                        {/* Inline Play Action Button */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleTrackClick(track, index);
+                          }}
+                          aria-label={isTrackPlaying ? `Pause ${track.title}` : `Play ${track.title}`}
+                          className={`flex h-8 w-8 items-center justify-center rounded-full transition-all ${
+                            isActive
+                              ? "bg-emerald-500 text-zinc-950 shadow-md shadow-emerald-500/20"
+                              : "bg-zinc-800 text-zinc-300 hover:bg-emerald-500 hover:text-zinc-950 hover:scale-105"
+                          }`}
+                        >
+                          {isTrackPlaying ? (
+                            <Pause className="h-4 w-4 fill-current" />
+                          ) : (
+                            <Play className="h-4 w-4 fill-current ml-0.5" />
+                          )}
+                        </button>
                       </div>
                     </div>
                   );
                 })}
+              </div>
+            ) : (
+              /* LIST / TABLE VIEW */
+              <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/30">
+                <div className="grid grid-cols-12 gap-2 border-b border-zinc-800/80 px-4 py-3 text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+                  <div className="col-span-1 text-center">#</div>
+                  <div className="col-span-6 sm:col-span-5">Title & Artist</div>
+                  <div className="hidden sm:block sm:col-span-4">Album</div>
+                  <div className="col-span-5 sm:col-span-2 text-right flex items-center justify-end gap-1">
+                    <Clock className="h-3 w-3" />
+                    <span>Duration</span>
+                  </div>
+                </div>
+
+                <div className="divide-y divide-zinc-800/50">
+                  {filteredTracks.map((track, index) => {
+                    const isActive = currentTrack?.id === track.id;
+                    const isTrackPlaying = isActive && isPlaying;
+
+                    return (
+                      <div
+                        key={track.id}
+                        onClick={() => handleTrackClick(track, index)}
+                        className={`group grid grid-cols-12 items-center gap-2 px-4 py-3 cursor-pointer transition-colors ${
+                          isActive
+                            ? "bg-emerald-500/10 text-zinc-100"
+                            : "hover:bg-zinc-800/40 text-zinc-300"
+                        }`}
+                      >
+                        {/* Track Index / Play Indicator */}
+                        <div className="col-span-1 text-center">
+                          {isTrackPlaying ? (
+                            <div className="flex items-end justify-center gap-0.5 h-3.5 mx-auto">
+                              <span className="w-0.5 bg-emerald-400 rounded-full animate-waveform-1" />
+                              <span className="w-0.5 bg-emerald-400 rounded-full animate-waveform-2" />
+                              <span className="w-0.5 bg-emerald-400 rounded-full animate-waveform-3" />
+                              <span className="w-0.5 bg-emerald-400 rounded-full animate-waveform-4" />
+                            </div>
+                          ) : (
+                            <div className="relative flex items-center justify-center">
+                              <span className={`text-xs font-mono group-hover:opacity-0 ${isActive ? "text-emerald-400 font-bold" : "text-zinc-500"}`}>
+                                {index + 1}
+                              </span>
+                              <Play className="absolute h-3.5 w-3.5 text-zinc-100 fill-zinc-100 opacity-0 group-hover:opacity-100 transition-opacity ml-0.5" />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Cover Art + Title + Artist */}
+                        <div className="col-span-6 sm:col-span-5 flex items-center gap-3 min-w-0">
+                          <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-zinc-800">
+                            {track.cover_url ? (
+                              <Image
+                                src={track.cover_url}
+                                alt={track.title}
+                                fill
+                                sizes="40px"
+                                className="object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center text-zinc-500">
+                                <Music2 className="h-4 w-4" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1 truncate">
+                            <p
+                              className={`text-sm font-medium truncate ${
+                                isActive ? "text-emerald-400" : "text-zinc-100 group-hover:text-white"
+                              }`}
+                            >
+                              {track.title}
+                            </p>
+                            <p className="text-xs text-zinc-400 truncate">
+                              {track.artist}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Album */}
+                        <div className="hidden sm:block sm:col-span-4 min-w-0 truncate text-xs text-zinc-400">
+                          {track.album || "—"}
+                        </div>
+
+                        {/* Duration & Play action */}
+                        <div className="col-span-5 sm:col-span-2 flex items-center justify-end gap-3 text-right">
+                          <span className={`text-xs font-mono ${isActive ? "text-emerald-400 font-medium" : "text-zinc-400"}`}>
+                            {formatTime(track.duration)}
+                          </span>
+
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleTrackClick(track, index);
+                            }}
+                            className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors ${
+                              isActive
+                                ? "bg-emerald-500 text-zinc-950"
+                                : "bg-zinc-800 text-zinc-400 opacity-0 group-hover:opacity-100 hover:bg-emerald-500 hover:text-zinc-950"
+                            }`}
+                            aria-label={isTrackPlaying ? `Pause ${track.title}` : `Play ${track.title}`}
+                          >
+                            {isTrackPlaying ? (
+                              <Pause className="h-3.5 w-3.5 fill-current" />
+                            ) : (
+                              <Play className="h-3.5 w-3.5 fill-current ml-0.5" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </section>

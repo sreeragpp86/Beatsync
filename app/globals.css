@@ -87,3 +87,26 @@ input[type="range"]:hover::-moz-range-thumb {
   transform: scale(1.25);
   background: #34d399;
 }
+
+/* Animated soundwave bars for currently playing track */
+@keyframes soundwave-bounce {
+  0%, 100% {
+    height: 4px;
+  }
+  50% {
+    height: 16px;
+  }
+}
+
+.animate-waveform-1 {
+  animation: soundwave-bounce 0.8s ease-in-out infinite;
+}
+.animate-waveform-2 {
+  animation: soundwave-bounce 0.8s ease-in-out infinite 0.25s;
+}
+.animate-waveform-3 {
+  animation: soundwave-bounce 0.8s ease-in-out infinite 0.5s;
+}
+.animate-waveform-4 {
+  animation: soundwave-bounce 0.8s ease-in-out infinite 0.15s;
+}
