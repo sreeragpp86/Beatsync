@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import Image from "next/image";
 import {
   Play,
@@ -15,17 +15,15 @@ import {
   Music2,
   ListMusic,
   Loader2,
-  Search,
-  X,
   LayoutGrid,
   List,
   Clock,
   Heart,
 } from "lucide-react";
 import { isSupabaseConfigured } from "@/lib/supabase";
-import { getTracks } from "@/lib/tracks";
 import { useAudioStore } from "@/stores/useAudioStore";
 import { useLikesStore } from "@/stores/useLikesStore";
+import { SearchBar } from "@/components/SearchBar";
 import { Track } from "@/types/track";
 
 function formatTime(seconds: number): string {
@@ -48,54 +46,50 @@ export default function Home() {
 
   const [tracks, setTracks] = useState<Track[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSearching, setIsSearching] = useState(false);
   const [activeTab, setActiveTab] = useState<"explore" | "library" | "radio">(
     "explore"
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
-  // Load tracks via data access layer and sync remote likes
-  useEffect(() => {
-    let mounted = true;
-    syncLikes();
+  const handleSearch = useCallback(async (query: string) => {
+    setSearchQuery(query);
+    setIsSearching(true);
 
-    getTracks()
-      .then((data) => {
-        if (mounted) {
-          setTracks(data);
-        }
-      })
-      .catch((err) => {
-        console.warn("[SoundWave] Failed to load tracks:", err);
-      })
-      .finally(() => {
-        if (mounted) {
-          setIsLoading(false);
-        }
-      });
-
-    return () => {
-      mounted = false;
-    };
-  }, [syncLikes]);
-
-  // Filter tracks by active tab (Explore vs Library) and search query
-  const filteredTracks = useMemo(() => {
-    let list = tracks;
-
-    if (activeTab === "library") {
-      list = list.filter((t) => likedTrackIds.includes(t.id));
+    try {
+      const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setTracks(data.tracks || []);
+      } else {
+        console.warn("[SoundWave] Search request returned status:", res.status);
+      }
+    } catch (err) {
+      console.warn("[SoundWave] Search request failed:", err);
+    } finally {
+      setIsSearching(false);
+      setIsLoading(false);
     }
+  }, []);
 
-    if (!searchQuery.trim()) return list;
-    const query = searchQuery.toLowerCase().trim();
-    return list.filter(
-      (t) =>
-        t.title.toLowerCase().includes(query) ||
-        t.artist.toLowerCase().includes(query) ||
-        (t.album && t.album.toLowerCase().includes(query))
-    );
-  }, [tracks, searchQuery, activeTab, likedTrackIds]);
+  const handleResetSearch = () => {
+    handleSearch("");
+  };
+
+  // Initial load: sync remote likes and fetch initial tracks
+  useEffect(() => {
+    syncLikes();
+    handleSearch("");
+  }, [syncLikes, handleSearch]);
+
+  // Filter tracks by active tab (Explore vs Library)
+  const filteredTracks = useMemo(() => {
+    if (activeTab === "library") {
+      return tracks.filter((t) => likedTrackIds.includes(t.id));
+    }
+    return tracks;
+  }, [tracks, activeTab, likedTrackIds]);
 
   const handleTrackClick = (track: Track, index: number) => {
     if (currentTrack?.id === track.id) {
@@ -301,30 +295,17 @@ export default function Home() {
 
           {/* Search Bar & View Toggle */}
           <section className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400 pointer-events-none" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search tracks by title, artist, or album..."
-                className="w-full h-10 pl-10 pr-9 rounded-xl border border-zinc-800 bg-zinc-900/60 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/40 transition-colors"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-200"
-                  aria-label="Clear search"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
+            <SearchBar
+              initialValue={searchQuery}
+              onSearch={handleSearch}
+              isLoading={isSearching}
+              className="flex-1 max-w-md"
+            />
 
             <div className="flex items-center justify-between sm:justify-end gap-3">
               <span className="text-xs text-zinc-400 font-mono">
-                {isLoading
-                  ? "Loading tracks..."
+                {isLoading || isSearching
+                  ? "Searching catalog..."
                   : searchQuery
                   ? `${filteredTracks.length} of ${tracks.length} tracks`
                   : `${tracks.length} tracks`}
@@ -370,18 +351,52 @@ export default function Home() {
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-zinc-800/80 text-zinc-500 mb-3">
                   <Music2 className="h-6 w-6" />
                 </div>
-                <p className="text-sm font-medium text-zinc-300">
-                  No tracks found matching &ldquo;{searchQuery}&rdquo;
-                </p>
-                <p className="text-xs text-zinc-500 mt-1 max-w-sm">
-                  Try searching with a different title, artist name, or clear the filter to view all available tracks.
-                </p>
-                <button
-                  onClick={() => setSearchQuery("")}
-                  className="mt-4 rounded-lg bg-zinc-800 px-3.5 py-1.5 text-xs font-medium text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors"
-                >
-                  Clear search query
-                </button>
+                {searchQuery ? (
+                  <>
+                    <p className="text-sm font-medium text-zinc-300">
+                      No tracks found for &ldquo;{searchQuery}&rdquo;
+                    </p>
+                    <p className="text-xs text-zinc-500 mt-1 max-w-sm">
+                      We couldn&apos;t find any songs matching your query. Try searching by another artist, title, or album.
+                    </p>
+                    <button
+                      onClick={handleResetSearch}
+                      className="mt-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 px-4 py-2 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/20 transition-all cursor-pointer"
+                    >
+                      Reset Search
+                    </button>
+                  </>
+                ) : activeTab === "library" ? (
+                  <>
+                    <p className="text-sm font-medium text-zinc-300">
+                      Your library is empty
+                    </p>
+                    <p className="text-xs text-zinc-500 mt-1 max-w-sm">
+                      You haven&apos;t liked any tracks yet. Click the heart icon on any track in Explore to add it to your library.
+                    </p>
+                    <button
+                      onClick={() => setActiveTab("explore")}
+                      className="mt-4 rounded-xl bg-zinc-800 px-4 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-700 transition-all cursor-pointer"
+                    >
+                      Discover Tracks
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm font-medium text-zinc-300">
+                      No tracks available
+                    </p>
+                    <p className="text-xs text-zinc-500 mt-1 max-w-sm">
+                      Check your connection or reload the catalog.
+                    </p>
+                    <button
+                      onClick={handleResetSearch}
+                      className="mt-4 rounded-xl bg-zinc-800 px-4 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-700 transition-all cursor-pointer"
+                    >
+                      Reload Catalog
+                    </button>
+                  </>
+                )}
               </div>
             ) : viewMode === "grid" ? (
               /* GRID VIEW */
