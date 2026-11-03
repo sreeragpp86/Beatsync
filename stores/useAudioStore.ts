@@ -36,6 +36,8 @@ export interface AudioState {
 
 // Client-safe Audio singleton initialization
 let audioInstance: HTMLAudioElement | null = null;
+let consecutiveErrors = 0;
+let skipTimer: ReturnType<typeof setTimeout> | null = null;
 
 const getAudioElement = (): HTMLAudioElement | null => {
   if (typeof window === 'undefined') {
@@ -51,15 +53,20 @@ const getAudioElement = (): HTMLAudioElement | null => {
   return audioInstance;
 };
 
+interface ResolvedStream {
+  url: string;
+  isFallback: boolean;
+}
+
 // Helper: resolve stream URL for track
-const resolveAudioStreamUrl = async (track: Track): Promise<string> => {
+const resolveAudioStreamUrl = async (track: Track): Promise<ResolvedStream> => {
   // If track already has direct external audio URL, use it directly
   if (
     track.audio_url &&
     track.audio_url.startsWith('http') &&
     !track.audio_url.includes('/api/stream')
   ) {
-    return track.audio_url;
+    return { url: track.audio_url, isFallback: false };
   }
 
   try {
@@ -67,7 +74,10 @@ const resolveAudioStreamUrl = async (track: Track): Promise<string> => {
     if (res.ok) {
       const data = await res.json();
       if (data.streamUrl) {
-        return data.streamUrl;
+        return {
+          url: data.streamUrl,
+          isFallback: Boolean(data.isFallback),
+        };
       }
     }
   } catch (err) {
@@ -75,7 +85,38 @@ const resolveAudioStreamUrl = async (track: Track): Promise<string> => {
   }
 
   // Fallback to streaming proxy route
-  return `/api/stream?id=${encodeURIComponent(track.id)}`;
+  return {
+    url: `/api/stream?id=${encodeURIComponent(track.id)}`,
+    isFallback: false,
+  };
+};
+
+const scheduleSkipNext = (
+  playNextFn: () => void,
+  set: (state: Partial<AudioState>) => void,
+  queueLength: number
+) => {
+  if (skipTimer) {
+    clearTimeout(skipTimer);
+    skipTimer = null;
+  }
+
+  consecutiveErrors++;
+  if (consecutiveErrors >= 3) {
+    set({
+      isPlaying: false,
+      isLoadingStream: false,
+      toastMessage: 'Playback stopped after multiple stream errors. Please select another track.',
+    });
+    return;
+  }
+
+  if (queueLength > 1) {
+    skipTimer = setTimeout(() => {
+      skipTimer = null;
+      playNextFn();
+    }, 1500);
+  }
 };
 
 export const useAudioStore = create<AudioState>((set, get) => {
@@ -106,6 +147,15 @@ export const useAudioStore = create<AudioState>((set, get) => {
         get().playNext();
       });
 
+      audio.addEventListener('playing', () => {
+        consecutiveErrors = 0;
+        if (skipTimer) {
+          clearTimeout(skipTimer);
+          skipTimer = null;
+        }
+        set({ isPlaying: true, isLoadingStream: false });
+      });
+
       audio.addEventListener('play', () => {
         set({ isPlaying: true });
       });
@@ -121,12 +171,7 @@ export const useAudioStore = create<AudioState>((set, get) => {
           isLoadingStream: false,
           toastMessage: 'Unable to stream this track. Skipping...',
         });
-        const currentQueue = get().queue;
-        if (currentQueue && currentQueue.length > 1) {
-          setTimeout(() => {
-            get().playNext();
-          }, 1500);
-        }
+        scheduleSkipNext(() => get().playNext(), set, get().queue.length);
       });
     }
   }
@@ -219,6 +264,12 @@ export const useAudioStore = create<AudioState>((set, get) => {
     },
 
     playTrack: async (track: Track) => {
+      if (skipTimer) {
+        clearTimeout(skipTimer);
+        skipTimer = null;
+      }
+      consecutiveErrors = 0;
+
       const audio = getAudioElement();
       const currentQueue = get().queue;
 
@@ -242,7 +293,11 @@ export const useAudioStore = create<AudioState>((set, get) => {
 
       if (audio) {
         try {
-          const streamUrl = await resolveAudioStreamUrl(track);
+          const { url: streamUrl, isFallback } = await resolveAudioStreamUrl(track);
+          if (isFallback) {
+            set({ toastMessage: 'Streaming high-fidelity audio fallback' });
+          }
+
           if (audio.src !== streamUrl) {
             audio.src = streamUrl;
             audio.currentTime = 0;
@@ -253,17 +308,12 @@ export const useAudioStore = create<AudioState>((set, get) => {
           if (playPromise !== undefined) {
             playPromise
               .then(() => {
+                consecutiveErrors = 0;
                 set({ isPlaying: true, isLoadingStream: false });
               })
               .catch((error) => {
-                if (error.name !== 'AbortError') {
+                if (error.name !== 'AbortError' && error.name !== 'NotAllowedError') {
                   console.warn('[BeatSync Audio] Playback prevented:', error);
-                  if (error.name !== 'NotAllowedError') {
-                    set({ toastMessage: 'Unable to stream this track. Skipping...' });
-                    if (get().queue.length > 1) {
-                      setTimeout(() => get().playNext(), 1500);
-                    }
-                  }
                 }
                 set({ isPlaying: false, isLoadingStream: false });
               });
@@ -297,7 +347,11 @@ export const useAudioStore = create<AudioState>((set, get) => {
       const audio = getAudioElement();
       if (audio) {
         try {
-          const streamUrl = await resolveAudioStreamUrl(targetTrack);
+          const { url: streamUrl, isFallback } = await resolveAudioStreamUrl(targetTrack);
+          if (isFallback) {
+            set({ toastMessage: 'Streaming high-fidelity audio fallback' });
+          }
+
           if (audio.src !== streamUrl) {
             audio.src = streamUrl;
             audio.currentTime = 0;
@@ -308,17 +362,12 @@ export const useAudioStore = create<AudioState>((set, get) => {
           if (playPromise !== undefined) {
             playPromise
               .then(() => {
+                consecutiveErrors = 0;
                 set({ isPlaying: true, isLoadingStream: false });
               })
               .catch((error) => {
-                if (error.name !== 'AbortError') {
+                if (error.name !== 'AbortError' && error.name !== 'NotAllowedError') {
                   console.warn('[BeatSync Audio] Playback prevented:', error);
-                  if (error.name !== 'NotAllowedError') {
-                    set({ toastMessage: 'Unable to stream this track. Skipping...' });
-                    if (get().queue.length > 1) {
-                      setTimeout(() => get().playNext(), 1500);
-                    }
-                  }
                 }
                 set({ isPlaying: false, isLoadingStream: false });
               });
@@ -339,6 +388,11 @@ export const useAudioStore = create<AudioState>((set, get) => {
 
     playWithAutoQueue: async (selectedTrack: Track, allAvailableTracks: Track[]) => {
       if (!selectedTrack) return;
+      if (skipTimer) {
+        clearTimeout(skipTimer);
+        skipTimer = null;
+      }
+      consecutiveErrors = 0;
 
       // Filter initial candidates excluding selectedTrack
       const candidates = (allAvailableTracks || []).filter(
@@ -359,7 +413,11 @@ export const useAudioStore = create<AudioState>((set, get) => {
       const audio = getAudioElement();
       if (audio) {
         try {
-          const streamUrl = await resolveAudioStreamUrl(selectedTrack);
+          const { url: streamUrl, isFallback } = await resolveAudioStreamUrl(selectedTrack);
+          if (isFallback) {
+            set({ toastMessage: 'Streaming high-fidelity audio fallback' });
+          }
+
           if (audio.src !== streamUrl) {
             audio.src = streamUrl;
             audio.currentTime = 0;
@@ -369,16 +427,13 @@ export const useAudioStore = create<AudioState>((set, get) => {
           const playPromise = audio.play();
           if (playPromise !== undefined) {
             playPromise
-              .then(() => set({ isPlaying: true, isLoadingStream: false }))
+              .then(() => {
+                consecutiveErrors = 0;
+                set({ isPlaying: true, isLoadingStream: false });
+              })
               .catch((err) => {
-                if (err.name !== 'AbortError') {
+                if (err.name !== 'AbortError' && err.name !== 'NotAllowedError') {
                   console.warn('[BeatSync Audio] Autoplay prevented:', err);
-                  if (err.name !== 'NotAllowedError') {
-                    set({ toastMessage: 'Unable to stream this track. Skipping...' });
-                    if (get().queue.length > 1) {
-                      setTimeout(() => get().playNext(), 1500);
-                    }
-                  }
                 }
                 set({ isPlaying: false, isLoadingStream: false });
               });

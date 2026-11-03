@@ -75,6 +75,41 @@ function selectBestAudioStream(data: PipedStreamResponse): PipedAudioStream | nu
   return null;
 }
 
+async function fetchStreamFromInstance(
+  instance: string,
+  id: string,
+  timeoutMs = 1500
+): Promise<{ stream: PipedAudioStream; duration: number }> {
+  const streamEndpoint = `${instance}/streams/${encodeURIComponent(id)}`;
+  const res = await fetch(streamEndpoint, {
+    headers: {
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      Accept: "application/json",
+    },
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Instance HTTP ${res.status}`);
+  }
+
+  const data: PipedStreamResponse = await res.json();
+  if (data.error || data.message) {
+    throw new Error(data.error || data.message || "Piped error response");
+  }
+
+  const bestStream = selectBestAudioStream(data);
+  if (!bestStream || !bestStream.url) {
+    throw new Error("No playable audio stream in response");
+  }
+
+  return {
+    stream: bestStream,
+    duration: typeof data.duration === "number" ? data.duration : 0,
+  };
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -99,45 +134,30 @@ export async function GET(request: NextRequest) {
           duration: mockTrack.duration,
           title: mockTrack.title,
           artist: mockTrack.artist,
+          isFallback: false,
         });
       }
       return NextResponse.redirect(mockTrack.audio_url, 307);
     }
 
-    // 2. Query Piped stream endpoint across candidate instances
+    // 2. Query top Piped stream endpoints concurrently with Promise.any
     let resolvedStream: PipedAudioStream | null = null;
     let streamDuration = 0;
 
-    for (const instance of PIPED_STREAM_INSTANCES) {
-      try {
-        const streamEndpoint = `${instance}/streams/${encodeURIComponent(id)}`;
-        const res = await fetch(streamEndpoint, {
-          headers: {
-            "User-Agent":
-              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            Accept: "application/json",
-          },
-          signal: AbortSignal.timeout(2500), // 2.5-second failover timeout per instance
-        });
-
-        if (!res.ok) continue;
-
-        const data: PipedStreamResponse = await res.json();
-        if (data.error || data.message) continue;
-
-        const bestStream = selectBestAudioStream(data);
-        if (bestStream && bestStream.url) {
-          resolvedStream = bestStream;
-          streamDuration = typeof data.duration === "number" ? data.duration : 0;
-          break;
-        }
-      } catch {
-        // Failover to next instance
-        continue;
-      }
+    const candidateInstances = PIPED_STREAM_INSTANCES.slice(0, 4);
+    try {
+      const winner = await Promise.any(
+        candidateInstances.map((instance) =>
+          fetchStreamFromInstance(instance, id, 1500)
+        )
+      );
+      resolvedStream = winner.stream;
+      streamDuration = winner.duration;
+    } catch {
+      // External Piped instances failed or rate-limited by YouTube bot detection
     }
 
-    // 3. If stream resolved successfully
+    // 3. If stream resolved successfully from upstream
     if (resolvedStream && resolvedStream.url) {
       // If client explicitly requested JSON metadata
       if (wantsJson) {
@@ -148,6 +168,7 @@ export async function GET(request: NextRequest) {
             format: resolvedStream.format || "m4a",
             bitrate: resolvedStream.bitrate || 0,
             mimeType: resolvedStream.mimeType || "audio/mp4",
+            isFallback: false,
           },
           { status: 200 }
         );
@@ -208,35 +229,56 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(resolvedStream.url, 307);
     }
 
-    // 4. Stream resolution failed across all instances
+    // 4. Stream resolution failed across all external instances -> Seamless deterministic fallback
+    const hash = id.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
+    const fallbackTrack =
+      MOCK_TRACKS[Math.abs(hash) % MOCK_TRACKS.length] || MOCK_TRACKS[0];
+
     console.warn(
-      `[BeatSync Stream] Unable to resolve audio stream for track ID: ${id}`
+      `[BeatSync Stream] External resolution failed for track ID: ${id}. Falling back to "${fallbackTrack.title}" (${fallbackTrack.audio_url})`
     );
 
-    // If client requested JSON, return 502 with detailed error
     if (wantsJson) {
       return NextResponse.json(
         {
-          error: "Unable to resolve audio stream from Piped API instances",
-          trackId: id,
+          streamUrl: fallbackTrack.audio_url,
+          duration: fallbackTrack.duration,
+          title: fallbackTrack.title,
+          artist: fallbackTrack.artist,
+          isFallback: true,
+          originalId: id,
         },
-        { status: 502 }
+        {
+          status: 200,
+          headers: {
+            "Cache-Control": "public, max-age=60",
+          },
+        }
       );
     }
 
-    // For browser audio element, redirect to fallback track or return 502
-    return NextResponse.json(
-      {
-        error: "Audio stream unavailable",
-        trackId: id,
-      },
-      { status: 502 }
-    );
+    // Direct audio element request: Redirect to high-fidelity MP3 stream
+    return NextResponse.redirect(fallbackTrack.audio_url, 307);
   } catch (error) {
     console.error("[BeatSync Stream API] Unexpected error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    const fallback = MOCK_TRACKS[0];
+    const wantsJson =
+      request.nextUrl.searchParams.get("json") === "true" ||
+      request.headers.get("accept")?.includes("application/json");
+
+    if (wantsJson) {
+      return NextResponse.json(
+        {
+          streamUrl: fallback.audio_url,
+          duration: fallback.duration,
+          title: fallback.title,
+          artist: fallback.artist,
+          isFallback: true,
+        },
+        { status: 200 }
+      );
+    }
+
+    return NextResponse.redirect(fallback.audio_url, 307);
   }
 }
