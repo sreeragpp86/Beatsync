@@ -137,11 +137,13 @@ aside div.bg-\[\#121212\] {
 /* Sticky Header Glass Bar */
 header.sticky,
 header {
-  background: rgba(12, 12, 22, 0.60) !important;
-  backdrop-filter: blur(24px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3) !important;
+  background: rgba(10, 10, 18, 0.94) !important;
+  backdrop-filter: blur(28px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.10) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
+  transform: translateZ(0);
+  will-change: transform;
 }
 
 /* Search Bar Input Glass Pill */

@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useLikesStore } from "@/stores/useLikesStore";
 import { useAudioStore } from "@/stores/useAudioStore";
+import { toast } from "sonner";
 
 export function Sidebar() {
   const [mounted, setMounted] = useState(false);
@@ -31,10 +32,10 @@ export function Sidebar() {
   const likedCount = mounted ? likedTrackIds.length : 0;
 
   const quickPlaylists = [
-    { title: "Today's Top Hits", subtitle: "Playlist • BeatSync", href: "/" },
-    { title: "Chill Lofi Beats", subtitle: "Playlist • BeatSync", href: "/" },
-    { title: "Deep Focus Instrumental", subtitle: "Playlist • BeatSync", href: "/" },
-    { title: "All Out 2000s Hits", subtitle: "Playlist • BeatSync", href: "/" },
+    { title: "Today's Top Hits", subtitle: "Playlist • BeatSync", href: "/search?q=top+hits" },
+    { title: "Chill Lofi Beats", subtitle: "Playlist • BeatSync", href: "/search?q=lo-fi+beats" },
+    { title: "Deep Focus Instrumental", subtitle: "Playlist • BeatSync", href: "/search?q=focus+instrumental" },
+    { title: "All Out 2000s Hits", subtitle: "Playlist • BeatSync", href: "/search?q=2000s+hits" },
   ];
 
   return (
@@ -88,6 +89,7 @@ export function Sidebar() {
             <span className="font-bold text-sm">Your Library</span>
           </div>
           <button
+            onClick={() => toast.info("Custom playlist creation coming soon!")}
             aria-label="Create playlist or folder"
             className="rounded-full p-1 text-[#B3B3B3] hover:text-white hover:bg-[#282828] transition-colors cursor-pointer"
           >

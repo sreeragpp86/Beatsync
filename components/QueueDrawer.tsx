@@ -79,7 +79,7 @@ export function QueueDrawer() {
       {/* Slide-over panel */}
       <aside
         aria-label="Queue Slide-over Panel"
-        className="fixed top-0 bottom-[88px] right-0 z-50 w-full sm:max-w-md bg-[#121212]/95 backdrop-blur-xl border-l border-[#282828] shadow-2xl flex flex-col animate-in slide-in-from-right duration-200 select-none"
+        className="fixed top-0 bottom-0 md:bottom-[88px] right-0 z-50 w-full sm:max-w-md bg-[#12121e]/98 backdrop-blur-2xl border-l border-white/10 shadow-2xl flex flex-col animate-in slide-in-from-right duration-200 select-none"
       >
         {/* Drawer Header */}
         <div className="flex items-center justify-between border-b border-[#282828] px-5 py-4">

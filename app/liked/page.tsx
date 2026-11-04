@@ -60,8 +60,8 @@ export function LikedSongsContent() {
 
   return (
     <div className="flex flex-col min-h-full select-none">
-      {/* Sticky Top Bar with Back/Forward & Discover Navigation */}
-      <header className="sticky top-0 z-30 flex items-center justify-between px-6 py-4 bg-[#121212]/80 backdrop-blur-md border-b border-white/10">
+      {/* Sticky Top Bar with Back/Forward & Search Hub Navigation */}
+      <header className="sticky top-0 z-30 flex items-center justify-between px-3.5 py-2.5 sm:px-6 sm:py-4 bg-[#0c0c16]/95 backdrop-blur-xl border-b border-white/10 select-none">
         <div className="flex items-center gap-2">
           <button
             onClick={() => window.history.back()}
@@ -80,21 +80,21 @@ export function LikedSongsContent() {
         </div>
 
         <Link
-          href="/"
-          className="text-xs font-bold text-[#B3B3B3] hover:text-white transition-colors flex items-center gap-1.5"
+          href="/search"
+          className="text-xs font-bold text-[#B3B3B3] hover:text-white transition-colors flex items-center gap-1.5 shrink-0"
         >
           <Compass className="h-4 w-4 text-[#1DB954]" />
-          <span>Discover Music</span>
+          <span>Find Music</span>
         </Link>
       </header>
 
       {/* Spotify Liked Songs Hero Header with Violet-to-Black Gradient */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-[#4c1d95]/90 via-[#1e1035]/80 to-transparent px-6 pt-10 pb-8 border-b border-white/5">
-        <div className="relative z-10 flex flex-col sm:flex-row items-center sm:items-end gap-6 sm:gap-8">
+      <section className="relative overflow-hidden bg-gradient-to-b from-[#4c1d95]/90 via-[#1e1035]/80 to-transparent px-4 sm:px-6 pt-6 sm:pt-10 pb-6 sm:pb-8 border-b border-white/5">
+        <div className="relative z-10 flex flex-col sm:flex-row items-center sm:items-end gap-5 sm:gap-8">
           {/* Large Heart Badge */}
-          <div className="relative group flex h-44 w-44 sm:h-52 sm:w-52 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#4c1d95] via-[#7c3aed] to-[#ec4899] text-white shadow-2xl border border-white/20">
-            <Heart className="h-24 w-24 fill-white text-white drop-shadow-2xl transition-transform duration-300 group-hover:scale-110" />
-            <div className="absolute inset-0 rounded-2xl bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+          <div className="relative group flex h-32 w-32 sm:h-52 sm:w-52 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl bg-gradient-to-br from-[#4c1d95] via-[#7c3aed] to-[#ec4899] text-white shadow-2xl border border-white/20">
+            <Heart className="h-16 w-16 sm:h-24 sm:w-24 fill-white text-white drop-shadow-2xl transition-transform duration-300 group-hover:scale-110" />
+            <div className="absolute inset-0 rounded-xl sm:rounded-2xl bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
           </div>
 
           {/* Playlist Metadata */}
@@ -173,11 +173,11 @@ export function LikedSongsContent() {
               Save tracks to your library by tapping the heart icon on any song card, row, or in the player dock.
             </p>
             <Link
-              href="/"
+              href="/search"
               className="mt-6 inline-flex items-center gap-2 rounded-full bg-white px-7 py-3 text-sm font-bold text-black hover:scale-105 active:scale-95 transition-all cursor-pointer shadow-lg hover:bg-neutral-100"
             >
               <Compass className="h-4 w-4" />
-              <span>Discover</span>
+              <span>Explore Music</span>
             </Link>
           </div>
         ) : (

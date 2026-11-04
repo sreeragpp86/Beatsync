@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Sidebar } from "@/components/Sidebar";
 import { PlayerBar } from "@/components/PlayerBar";
+import { MobileNav } from "@/components/MobileNav";
 import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
 import { Toaster } from "sonner";
 import { Analytics } from "@vercel/analytics/react";
@@ -50,21 +51,24 @@ export default function RootLayout({
           <div className="absolute inset-0 bg-radial from-transparent via-[#06060c]/40 to-[#06060c]/85" />
         </div>
 
-        {/* Main Application Container */}
-        <div className="relative z-10 flex h-screen flex-col overflow-hidden bg-transparent">
+        {/* Main Application Container with Dynamic Viewport Height for mobile */}
+        <div className="relative z-10 flex h-[100dvh] flex-col overflow-hidden bg-transparent">
           {/* Main Workspace (Sidebar + Scrollable Panel) */}
-          <div className="flex flex-1 overflow-hidden p-2.5 gap-2.5 pb-0">
+          <div className="flex flex-1 overflow-hidden p-1.5 sm:p-2.5 gap-2.5 pb-0">
             {/* Sidebar */}
             <Sidebar />
 
             {/* Main Content Glass Panel */}
-            <main className="glass-panel flex-1 rounded-2xl overflow-y-auto relative flex flex-col mb-[88px] shadow-2xl">
+            <main className="glass-panel flex-1 rounded-xl sm:rounded-2xl overflow-y-auto relative flex flex-col mb-[124px] md:mb-[88px] shadow-2xl">
               {children}
             </main>
           </div>
 
-          {/* Persistent Fixed Bottom Player Dock (88px) */}
+          {/* Persistent Player Dock (Mini Player on mobile, Full Dock on desktop) */}
           <PlayerBar />
+
+          {/* Persistent Bottom Navigation for Mobile Devices */}
+          <MobileNav />
         </div>
 
         {/* Global Keyboard Shortcuts (Space, Arrows, Mute) */}

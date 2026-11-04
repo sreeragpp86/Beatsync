@@ -237,8 +237,8 @@ function SearchHubContent() {
   return (
     <div className="flex flex-col min-h-full">
       {/* Sticky Top Bar: Navigation Arrows + Search Input + Liked Counter */}
-      <header className="sticky top-0 z-30 flex items-center justify-between px-6 py-4 bg-[#121212]/95 backdrop-blur-md border-b border-[#282828]/50">
-        <div className="flex items-center gap-4 flex-1 max-w-2xl">
+      <header className="sticky top-0 z-30 flex items-center justify-between px-3.5 py-2.5 sm:px-6 sm:py-4 bg-[#0c0c16]/95 backdrop-blur-xl border-b border-white/10 select-none">
+        <div className="flex items-center gap-2.5 sm:gap-4 flex-1 max-w-2xl min-w-0">
           {/* Back / Forward Arrows */}
           <div className="hidden sm:flex items-center gap-2 shrink-0">
             <button
@@ -258,8 +258,8 @@ function SearchHubContent() {
           </div>
 
           {/* Sticky Search Input Bar (Autofocus, Debounce, Clear button) */}
-          <div className="relative flex items-center w-full max-w-md bg-[#242424] hover:bg-[#2a2a2a] focus-within:bg-[#2a2a2a] rounded-full px-3.5 py-2.5 border border-transparent focus-within:border-[#1DB954]/60 transition-all text-sm group">
-            <Search className="h-5 w-5 text-[#B3B3B3] shrink-0 mr-2.5 group-hover:text-white group-focus-within:text-[#1DB954] transition-colors" />
+          <div className="relative flex items-center flex-1 max-w-md bg-[#242424] hover:bg-[#2a2a2a] focus-within:bg-[#2a2a2a] rounded-full px-3 sm:px-3.5 py-2 sm:py-2.5 border border-transparent focus-within:border-[#1DB954]/60 transition-all text-sm group min-w-0">
+            <Search className="h-4 sm:h-5 w-4 sm:w-5 text-[#B3B3B3] shrink-0 mr-2 sm:mr-2.5 group-hover:text-white group-focus-within:text-[#1DB954] transition-colors" />
             <input
               ref={searchInputRef}
               type="text"
@@ -267,16 +267,16 @@ function SearchHubContent() {
               onChange={handleInputChange}
               placeholder="What do you want to play?"
               autoFocus
-              className="bg-transparent text-white placeholder-[#757575] outline-none w-full text-sm font-medium"
+              className="bg-transparent text-white placeholder-[#757575] outline-none w-full text-xs sm:text-sm font-medium"
             />
             {isSearching && (
-              <Loader2 className="h-4 w-4 animate-spin text-[#1DB954] shrink-0 ml-2" />
+              <Loader2 className="h-4 w-4 animate-spin text-[#1DB954] shrink-0 ml-1 sm:ml-2" />
             )}
             {searchQuery && !isSearching && (
               <button
                 onClick={handleClearSearch}
                 aria-label="Clear search"
-                className="text-[#B3B3B3] hover:text-white p-0.5 ml-2 cursor-pointer transition-colors"
+                className="text-[#B3B3B3] hover:text-white p-0.5 ml-1 sm:ml-2 cursor-pointer transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -285,7 +285,7 @@ function SearchHubContent() {
         </div>
 
         {/* Right side status / profile pill */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0 ml-2">
           <Link
             href="/liked"
             className="hidden md:flex items-center gap-2 rounded-full bg-[#242424] hover:bg-[#2a2a2a] px-3.5 py-1.5 text-xs font-semibold text-white transition-colors border border-transparent hover:border-white/10"
@@ -293,14 +293,14 @@ function SearchHubContent() {
             <Heart className="h-3.5 w-3.5 text-rose-500 fill-rose-500" />
             <span>Liked ({likedTrackIds.length})</span>
           </Link>
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#282828] text-white font-bold text-xs shadow-inner">
+          <div className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-[#282828] text-white font-bold text-xs shadow-inner">
             B
           </div>
         </div>
       </header>
 
       {/* Main Search Hub Content */}
-      <div className="flex-1 px-6 py-6 space-y-8">
+      <div className="flex-1 px-3.5 sm:px-6 py-4 sm:py-6 space-y-6 sm:space-y-8">
         {/* STATE 1: LOADING SKELETON SHIMMER CARDS */}
         {isSearching && (
           <div className="space-y-8 animate-pulse">
@@ -371,23 +371,23 @@ function SearchHubContent() {
               </p>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 sm:gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 sm:gap-6">
               {GENRE_MOODS.map((genre) => {
                 const Icon = genre.icon;
                 return (
                   <button
                     key={genre.id}
                     onClick={() => handleSelectGenre(genre)}
-                    className={`group relative overflow-hidden rounded-xl p-5 aspect-[1.3/1] bg-gradient-to-br ${genre.gradient} text-left transition-all duration-300 hover:scale-[1.03] hover:shadow-2xl shadow-lg border border-white/10 cursor-pointer flex flex-col justify-between`}
+                    className={`group relative overflow-hidden rounded-xl p-3.5 sm:p-5 aspect-[1.3/1] bg-gradient-to-br ${genre.gradient} text-left transition-all duration-300 hover:scale-[1.03] hover:shadow-2xl shadow-lg border border-white/10 cursor-pointer flex flex-col justify-between`}
                   >
-                    <span className="font-extrabold text-lg sm:text-xl text-white tracking-tight drop-shadow-sm line-clamp-2">
+                    <span className="font-extrabold text-base sm:text-xl text-white tracking-tight drop-shadow-sm line-clamp-2">
                       {genre.name}
                     </span>
 
                     {/* Decorative Icon Badge with tilt */}
-                    <div className="self-end translate-x-2 translate-y-2 opacity-80 group-hover:opacity-100 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300">
-                      <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-black/25 backdrop-blur-sm shadow-md">
-                        <Icon className="h-7 w-7 text-white" />
+                    <div className="self-end translate-x-1 sm:translate-x-2 translate-y-1 sm:translate-y-2 opacity-80 group-hover:opacity-100 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300">
+                      <div className="flex h-10 w-10 sm:h-14 sm:w-14 items-center justify-center rounded-lg sm:rounded-xl bg-black/25 backdrop-blur-sm shadow-md">
+                        <Icon className="h-5 w-5 sm:h-7 sm:w-7 text-white" />
                       </div>
                     </div>
                   </button>

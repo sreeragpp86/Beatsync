@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useId, useCallback } from "react";
+import { useState, useEffect, useRef, useId } from "react";
 import Image from "next/image";
 import {
   Play,
@@ -102,13 +102,18 @@ export function PlayerBar() {
     }
   };
 
-  const handleToggleMute = useCallback(() => {
-    toggleMute();
-  }, [toggleMute]);
+  const handleToggleMute = () => {
+    if (volume > 0) {
+      prevVolumeRef.current = volume;
+      toggleMute();
+    } else {
+      setVolume(prevVolumeRef.current > 0 ? prevVolumeRef.current : 0.8);
+    }
+  };
 
   const renderVolumeIcon = () => {
     if (volume === 0) {
-      return <VolumeX className="h-4 w-4 text-[#B3B3B3]" />;
+      return <VolumeX className="h-4 w-4 text-[#B3B3B3] group-hover:text-white transition-colors" />;
     }
     if (volume < 0.5) {
       return <Volume1 className="h-4 w-4 text-[#B3B3B3] group-hover:text-white transition-colors" />;
@@ -116,14 +121,108 @@ export function PlayerBar() {
     return <Volume2 className="h-4 w-4 text-[#B3B3B3] group-hover:text-white transition-colors" />;
   };
 
-  // Color for the active progress bar (green on hover/drag, white default)
   const activeTrackColor = isTimelineHovered || isDragging ? "#1DB954" : "#FFFFFF";
 
   return (
     <>
+      {/* =========================================================================
+          1. MOBILE MINI-PLAYER (Floats right above MobileNav, md:hidden)
+          ========================================================================= */}
+      {currentTrack && (
+        <div
+          aria-label="Mobile Mini Player"
+          className="fixed bottom-[58px] left-2 right-2 z-40 md:hidden flex flex-col rounded-xl bg-[#12121e]/95 backdrop-blur-2xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.8)] overflow-hidden transition-all duration-300 select-none"
+          style={{
+            marginBottom: "max(0.25rem, env(safe-area-inset-bottom))",
+          }}
+        >
+          <div className="flex items-center justify-between p-2 gap-2.5">
+            {/* Artwork + Title & Artist */}
+            <div
+              onClick={toggleQueue}
+              className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer"
+            >
+              <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-[#242424] shadow-sm">
+                {currentTrack.cover_url ? (
+                  <Image
+                    src={currentTrack.cover_url}
+                    alt={currentTrack.title || "Track artwork"}
+                    fill
+                    sizes="40px"
+                    className="object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-[#B3B3B3]">
+                    <Music2 className="h-5 w-5" />
+                  </div>
+                )}
+              </div>
+
+              <div className="min-w-0 flex-1 truncate">
+                <p className="text-xs font-bold text-white truncate">
+                  {currentTrack.title}
+                </p>
+                <p className="text-[11px] text-[#A1A1AA] truncate mt-0.5">
+                  {currentTrack.artist}
+                </p>
+              </div>
+            </div>
+
+            {/* Mobile Controls: Like, Play/Pause, Next Track, Queue */}
+            <div className="flex items-center gap-2 shrink-0">
+              <LikeButton track={currentTrack} trackId={currentTrack.id} size={18} />
+
+              <button
+                onClick={togglePlay}
+                disabled={isLoadingStream}
+                aria-label={isLoadingStream ? "Loading stream..." : isPlaying ? "Pause" : "Play"}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-black shadow-md hover:scale-105 active:scale-95 transition-transform cursor-pointer"
+              >
+                {isLoadingStream ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-black" />
+                ) : isPlaying ? (
+                  <Pause className="h-4 w-4 fill-black" />
+                ) : (
+                  <Play className="h-4 w-4 fill-black ml-0.5" />
+                )}
+              </button>
+
+              <button
+                onClick={playNext}
+                aria-label="Next song"
+                className="p-1.5 text-[#B3B3B3] hover:text-white transition-colors cursor-pointer"
+              >
+                <SkipForward className="h-5 w-5 fill-current" />
+              </button>
+
+              <button
+                onClick={toggleQueue}
+                aria-label={isQueueOpen ? "Close queue" : "Open queue"}
+                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                  isQueueOpen ? "text-[#1DB954] bg-[#1DB954]/15" : "text-[#B3B3B3] hover:text-white"
+                }`}
+              >
+                <ListMusic className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Micro Progress Bar along bottom edge */}
+          <div className="w-full bg-white/10 h-[2px]">
+            <div
+              className="bg-[#1DB954] h-full transition-all duration-200"
+              style={{ width: `${clampedProgress}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          2. DESKTOP EXPANSIVE PLAYER DOCK (hidden md:flex)
+          ========================================================================= */}
       <footer
         aria-label="Spotify Player Dock"
-        className="fixed bottom-0 left-0 right-0 h-[88px] bg-[#000000] border-t border-[#282828] px-4 md:px-6 z-50 flex items-center justify-between select-none shadow-2xl"
+        className="hidden md:flex fixed bottom-0 left-0 right-0 h-[88px] bg-[#000000] border-t border-[#282828] px-4 md:px-6 z-50 items-center justify-between select-none shadow-2xl"
       >
         {/* Left Section: Current Track Artwork & Metadata */}
         <div className="flex items-center gap-3.5 w-1/4 min-w-[160px] max-w-[280px]">

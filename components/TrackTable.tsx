@@ -40,11 +40,11 @@ export function TrackTable({
   return (
     <div className="overflow-hidden rounded-md select-none">
       {/* Table Header */}
-      <div className="grid grid-cols-12 gap-4 border-b border-[#282828] px-4 py-2.5 text-xs font-semibold text-[#B3B3B3] uppercase tracking-wider">
+      <div className="grid grid-cols-12 gap-2 sm:gap-4 border-b border-[#282828] px-2 sm:px-4 py-2.5 text-xs font-semibold text-[#B3B3B3] uppercase tracking-wider">
         <div className="col-span-1 text-center">#</div>
-        <div className="col-span-6 sm:col-span-5">Title</div>
+        <div className="col-span-7 sm:col-span-5">Title</div>
         <div className="hidden sm:block sm:col-span-4">Album</div>
-        <div className="col-span-5 sm:col-span-2 text-right flex items-center justify-end gap-1.5 pr-2">
+        <div className="col-span-4 sm:col-span-2 text-right flex items-center justify-end gap-1.5 pr-1 sm:pr-2">
           <Clock className="h-3.5 w-3.5" />
         </div>
       </div>
@@ -59,7 +59,7 @@ export function TrackTable({
             <div
               key={track.id}
               onClick={() => handleRowClick(track, index)}
-              className={`group grid grid-cols-12 items-center gap-4 px-4 py-2 rounded-md cursor-pointer transition-colors ${
+              className={`group grid grid-cols-12 items-center gap-2 sm:gap-4 px-2 sm:px-4 py-2 rounded-md cursor-pointer transition-colors ${
                 isActive
                   ? "bg-[#282828] text-white"
                   : "hover:bg-[#282828]/60 text-[#B3B3B3] hover:text-white"
@@ -89,7 +89,7 @@ export function TrackTable({
               </div>
 
               {/* Cover Art + Title + Artist */}
-              <div className="col-span-6 sm:col-span-5 flex items-center gap-3.5 min-w-0">
+              <div className="col-span-7 sm:col-span-5 flex items-center gap-2.5 sm:gap-3.5 min-w-0">
                 <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded bg-[#282828] shadow-sm">
                   {track.cover_url ? (
                     <Image
@@ -125,7 +125,7 @@ export function TrackTable({
               </div>
 
               {/* Like Button & Duration */}
-              <div className="col-span-5 sm:col-span-2 flex items-center justify-end gap-3 text-right pr-2">
+              <div className="col-span-4 sm:col-span-2 flex items-center justify-end gap-2 sm:gap-3 text-right pr-1 sm:pr-2">
                 <LikeButton track={track} trackId={track.id} size={16} />
 
                 <span
