@@ -37,6 +37,7 @@ export function PlayerBar() {
     togglePlay,
     seek,
     setVolume,
+    toggleMute,
     playNext,
     playPrevious,
     toggleQueue,
@@ -102,13 +103,8 @@ export function PlayerBar() {
   };
 
   const handleToggleMute = useCallback(() => {
-    if (volume > 0) {
-      prevVolumeRef.current = volume;
-      setVolume(0);
-    } else {
-      setVolume(prevVolumeRef.current > 0 ? prevVolumeRef.current : 0.8);
-    }
-  }, [volume, setVolume]);
+    toggleMute();
+  }, [toggleMute]);
 
   const renderVolumeIcon = () => {
     if (volume === 0) {

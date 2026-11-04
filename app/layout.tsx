@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Sidebar } from "@/components/Sidebar";
 import { PlayerBar } from "@/components/PlayerBar";
+import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
 import { Toaster } from "sonner";
 import { Analytics } from "@vercel/analytics/react";
 
@@ -65,6 +66,9 @@ export default function RootLayout({
           {/* Persistent Fixed Bottom Player Dock (88px) */}
           <PlayerBar />
         </div>
+
+        {/* Global Keyboard Shortcuts (Space, Arrows, Mute) */}
+        <KeyboardShortcuts />
 
         {/* Sonner Toast Notification Center & Vercel Telemetry */}
         <Toaster theme="dark" richColors position="bottom-right" />

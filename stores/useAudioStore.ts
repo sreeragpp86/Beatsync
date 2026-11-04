@@ -31,6 +31,7 @@ export interface AudioState {
   togglePlay: () => void;
   seek: (seconds: number) => void;
   setVolume: (volume: number) => void;
+  toggleMute: () => void;
   playNext: () => void;
   playPrevious: () => void;
 }
@@ -40,6 +41,79 @@ let audioInstance: HTMLAudioElement | null = null;
 let consecutiveErrors = 0;
 let skipTimer: ReturnType<typeof setTimeout> | null = null;
 let retryAttemptedForTrackId: string | null = null;
+let lastNonZeroVolume = 0.8;
+
+/**
+ * Update native Navigator Media Session metadata
+ */
+const updateMediaSession = (track: Track | null) => {
+  if (typeof window === 'undefined' || !('mediaSession' in navigator)) {
+    return;
+  }
+
+  if (!track) {
+    try {
+      navigator.mediaSession.metadata = null;
+    } catch {}
+    return;
+  }
+
+  try {
+    const artworkSrc =
+      track.cover_url ||
+      'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=512&auto=format&fit=crop&q=80';
+
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: track.title || 'Unknown Title',
+      artist: track.artist || 'Unknown Artist',
+      album: track.album || 'BeatSync',
+      artwork: [
+        {
+          src: artworkSrc,
+          sizes: '512x512',
+          type: 'image/jpeg',
+        },
+      ],
+    });
+  } catch (err) {
+    console.warn('[BeatSync Audio] Error setting mediaSession metadata:', err);
+  }
+};
+
+/**
+ * Register native Navigator Media Session action handlers
+ */
+const registerMediaSessionHandlers = (get: () => AudioState) => {
+  if (typeof window === 'undefined' || !('mediaSession' in navigator)) {
+    return;
+  }
+
+  const actions: Array<{
+    action: MediaSessionAction;
+    handler: MediaSessionActionHandler;
+  }> = [
+    { action: 'play', handler: () => get().togglePlay() },
+    { action: 'pause', handler: () => get().togglePlay() },
+    { action: 'nexttrack', handler: () => get().playNext() },
+    { action: 'previoustrack', handler: () => get().playPrevious() },
+    {
+      action: 'seekto',
+      handler: (details) => {
+        if (typeof details.seekTime === 'number') {
+          get().seek(details.seekTime);
+        }
+      },
+    },
+  ];
+
+  for (const { action, handler } of actions) {
+    try {
+      navigator.mediaSession.setActionHandler(action, handler);
+    } catch {
+      // Ignored for browser engines without support for specific actions
+    }
+  }
+};
 
 const getAudioElement = (): HTMLAudioElement | null => {
   if (typeof window === 'undefined') {
@@ -129,8 +203,27 @@ export const useAudioStore = create<AudioState>((set, get) => {
     const audio = getAudioElement();
 
     if (audio) {
+      registerMediaSessionHandlers(get);
+
       audio.addEventListener('timeupdate', () => {
         set({ currentTime: audio.currentTime });
+
+        if (
+          typeof window !== 'undefined' &&
+          'mediaSession' in navigator &&
+          'setPositionState' in navigator.mediaSession
+        ) {
+          try {
+            const d = audio.duration;
+            if (Number.isFinite(d) && d > 0) {
+              navigator.mediaSession.setPositionState({
+                duration: d,
+                playbackRate: audio.playbackRate || 1,
+                position: Math.min(audio.currentTime, d),
+              });
+            }
+          } catch {}
+        }
       });
 
       audio.addEventListener('loadedmetadata', () => {
@@ -161,6 +254,9 @@ export const useAudioStore = create<AudioState>((set, get) => {
           skipTimer = null;
         }
         set({ isPlaying: true, isLoadingStream: false });
+        if (typeof window !== 'undefined' && 'mediaSession' in navigator) {
+          navigator.mediaSession.playbackState = 'playing';
+        }
         if (
           get().toastMessage === 'Re-routing stream...' ||
           get().toastMessage === 'Stream failed. Auto-retrying...'
@@ -171,10 +267,16 @@ export const useAudioStore = create<AudioState>((set, get) => {
 
       audio.addEventListener('play', () => {
         set({ isPlaying: true });
+        if (typeof window !== 'undefined' && 'mediaSession' in navigator) {
+          navigator.mediaSession.playbackState = 'playing';
+        }
       });
 
       audio.addEventListener('pause', () => {
         set({ isPlaying: false });
+        if (typeof window !== 'undefined' && 'mediaSession' in navigator) {
+          navigator.mediaSession.playbackState = 'paused';
+        }
       });
 
       // Audio error recovery & streaming fallback
@@ -399,6 +501,10 @@ export const useAudioStore = create<AudioState>((set, get) => {
         isLoadingStream: true,
       });
 
+      // Update native Navigator Media Session metadata & register action handlers
+      updateMediaSession(track);
+      registerMediaSessionHandlers(get);
+
       if (audio) {
         // SYNCHRONOUS playback start to preserve browser user activation
         const streamUrl = track.audio_url || `/api/stream?id=${encodeURIComponent(track.id)}`;
@@ -445,6 +551,10 @@ export const useAudioStore = create<AudioState>((set, get) => {
         duration: targetTrack.duration || 0,
         isLoadingStream: true,
       });
+
+      // Update native Navigator Media Session metadata & register action handlers
+      updateMediaSession(targetTrack);
+      registerMediaSessionHandlers(get);
 
       const audio = getAudioElement();
       if (audio) {
@@ -504,6 +614,10 @@ export const useAudioStore = create<AudioState>((set, get) => {
         duration: selectedTrack.duration || 0,
         isLoadingStream: true,
       });
+
+      // Update native Navigator Media Session metadata & register action handlers
+      updateMediaSession(selectedTrack);
+      registerMediaSessionHandlers(get);
 
       const audio = getAudioElement();
       if (audio) {
@@ -666,11 +780,25 @@ export const useAudioStore = create<AudioState>((set, get) => {
       const audio = getAudioElement();
       const clampedVolume = Math.max(0, Math.min(1, volume));
 
+      if (clampedVolume > 0) {
+        lastNonZeroVolume = clampedVolume;
+      }
+
       if (audio) {
         audio.volume = clampedVolume;
       }
 
       set({ volume: clampedVolume });
+    },
+
+    toggleMute: () => {
+      const { volume } = get();
+      if (volume > 0) {
+        lastNonZeroVolume = volume;
+        get().setVolume(0);
+      } else {
+        get().setVolume(lastNonZeroVolume || 0.8);
+      }
     },
 
     playNext: () => {
