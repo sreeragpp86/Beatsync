@@ -255,10 +255,10 @@ export function PlayerBar() {
           <button
             onClick={toggleQueue}
             aria-label={isQueueOpen ? "Close queue" : "Open queue"}
-            className={`rounded p-1.5 transition-colors cursor-pointer ${
+            className={`rounded-lg p-1.5 transition-all cursor-pointer ${
               isQueueOpen
-                ? "text-[#1DB954]"
-                : "text-[#B3B3B3] hover:text-white"
+                ? "text-[#1DB954] bg-[#1DB954]/15 shadow-sm"
+                : "text-[#B3B3B3] hover:text-white hover:bg-white/5"
             }`}
             title="Queue"
           >

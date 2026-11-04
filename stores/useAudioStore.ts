@@ -26,6 +26,7 @@ export interface AudioState {
   clearQueue: () => void;
   removeFromQueue: (index: number) => void;
   reorderQueue: (fromIndex: number, toIndex: number) => void;
+  shuffleRemaining: () => void;
   toggleQueue: () => void;
   setIsQueueOpen: (open: boolean) => void;
   togglePlay: () => void;
@@ -723,6 +724,28 @@ export const useAudioStore = create<AudioState>((set, get) => {
       });
     },
 
+    shuffleRemaining: () => {
+      const { queue, queueIndex } = get();
+      if (!queue || queue.length <= 1) return;
+
+      const upcomingStartIndex = queueIndex >= 0 ? queueIndex + 1 : 0;
+      if (upcomingStartIndex >= queue.length) return;
+
+      const keptTracks = queue.slice(0, upcomingStartIndex);
+      const remainingTracks = [...queue.slice(upcomingStartIndex)];
+
+      // Fisher-Yates shuffle
+      for (let i = remainingTracks.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [remainingTracks[i], remainingTracks[j]] = [remainingTracks[j], remainingTracks[i]];
+      }
+
+      set({
+        queue: [...keptTracks, ...remainingTracks],
+      });
+      toast.success("Shuffled upcoming queue", { duration: 1800 });
+    },
+
     togglePlay: () => {
       const audio = getAudioElement();
       const { isPlaying, currentTrack, queue, queueIndex } = get();
@@ -806,20 +829,23 @@ export const useAudioStore = create<AudioState>((set, get) => {
       if (!queue || queue.length === 0) return;
 
       const nextIndex = queueIndex + 1;
+
+      // Infinite radio queue generator: when queue.length - queueIndex <= 3,
+      // automatically query the next batch of related tracks and append them to keep playback infinite
+      if (queue.length - nextIndex <= 3) {
+        const referenceTrack = queue[nextIndex] || currentTrack || queue[queue.length - 1];
+        if (referenceTrack) {
+          get().fetchAutoQueue(referenceTrack);
+        }
+      }
+
       if (nextIndex < queue.length) {
         get().playQueueIndex(nextIndex);
-
-        // If queue has fewer than 2 songs left, automatically fetch and append more related tracks
-        if (nextIndex >= queue.length - 2) {
-          const current = queue[nextIndex];
-          if (current) {
-            get().fetchAutoQueue(current);
-          }
-        }
       } else {
-        // Reached end of queue: fetch more related tracks or loop
-        if (currentTrack) {
-          get().fetchAutoQueue(currentTrack).then(() => {
+        // Reached end of queue before background fetch resolved: wait for related tracks or loop
+        const referenceTrack = currentTrack || queue[queue.length - 1];
+        if (referenceTrack) {
+          get().fetchAutoQueue(referenceTrack).then(() => {
             const refreshedQueue = get().queue;
             if (refreshedQueue.length > queueIndex + 1) {
               get().playQueueIndex(queueIndex + 1);
