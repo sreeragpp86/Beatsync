@@ -44,19 +44,24 @@ export interface ResolvedAudioStream {
  * Caches URLs for 2 hours to provide instant replay and seek support.
  */
 export async function resolveYouTubeAudioStream(
-  videoId: string
+  videoId: string,
+  skipCache = false
 ): Promise<ResolvedAudioStream | null> {
   const cleanId = videoId.trim();
   if (!cleanId) return null;
 
   // 1. Check in-memory stream cache
-  const cached = streamCache.get(cleanId);
-  if (cached && Date.now() < cached.expiresAt) {
-    return {
-      url: cached.url,
-      mimeType: cached.mimeType,
-      duration: cached.duration,
-    };
+  if (!skipCache) {
+    const cached = streamCache.get(cleanId);
+    if (cached && Date.now() < cached.expiresAt) {
+      return {
+        url: cached.url,
+        mimeType: cached.mimeType,
+        duration: cached.duration,
+      };
+    }
+  } else {
+    streamCache.delete(cleanId);
   }
 
   // 2. Fetch fresh video stream info using Innertube client

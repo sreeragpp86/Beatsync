@@ -2,13 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { MOCK_TRACKS } from "@/lib/mock-tracks";
 import { resolveYouTubeAudioStream } from "@/lib/youtube";
 
-// Reliable public Piped instances for stream resolving fallback
-const PIPED_STREAM_INSTANCES = [
-  "https://pipedapi.ducks.party",
-  "https://api.piped.private.coffee",
+// Explicit 3 fallback Piped/Invidious instances as specified
+const FALLBACK_STREAM_INSTANCES = [
   "https://pipedapi.kavin.rocks",
   "https://api.piped.privacydev.net",
-  "https://pipedapi.tokhmi.xyz",
   "https://pipedapi.leptons.xyz",
 ];
 
@@ -38,7 +35,9 @@ interface PipedStreamResponse {
   message?: string;
 }
 
-function selectBestAudioStream(data: PipedStreamResponse): PipedAudioStream | null {
+function selectBestAudioStream(
+  data: PipedStreamResponse
+): PipedAudioStream | null {
   const audioStreams = Array.isArray(data.audioStreams) ? data.audioStreams : [];
 
   const validAudio = audioStreams.filter((s) => Boolean(s?.url));
@@ -74,10 +73,14 @@ function selectBestAudioStream(data: PipedStreamResponse): PipedAudioStream | nu
   return null;
 }
 
+/**
+ * Fetches stream details from a single instance with a strict 2500ms timeout.
+ * Throws on timeout, 403, 500, or invalid responses to trigger cycling.
+ */
 async function fetchStreamFromInstance(
   instance: string,
   id: string,
-  timeoutMs = 1500
+  timeoutMs = 2500
 ): Promise<{ stream: PipedAudioStream; duration: number }> {
   const streamEndpoint = `${instance}/streams/${encodeURIComponent(id)}`;
   const res = await fetch(streamEndpoint, {
@@ -90,7 +93,7 @@ async function fetchStreamFromInstance(
   });
 
   if (!res.ok) {
-    throw new Error(`Instance HTTP ${res.status}`);
+    throw new Error(`Instance returned HTTP ${res.status}`);
   }
 
   const data: PipedStreamResponse = await res.json();
@@ -109,6 +112,10 @@ async function fetchStreamFromInstance(
   };
 }
 
+/**
+ * Pipes audio through a Next.js streaming ReadableStream with full HTTP range
+ * and permissive CORS headers, avoiding client-side CORS issues.
+ */
 async function proxyAudioStream(
   request: NextRequest,
   targetUrl: string,
@@ -139,6 +146,15 @@ async function proxyAudioStream(
       );
       responseHeaders.set("Accept-Ranges", "bytes");
       responseHeaders.set("Access-Control-Allow-Origin", "*");
+      responseHeaders.set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+      responseHeaders.set(
+        "Access-Control-Allow-Headers",
+        "Range, Content-Type, Accept"
+      );
+      responseHeaders.set(
+        "Access-Control-Expose-Headers",
+        "Content-Range, Content-Length, Accept-Ranges"
+      );
       responseHeaders.set("Cache-Control", "public, max-age=3600");
 
       const contentLength = audioResponse.headers.get("content-length");
@@ -150,6 +166,7 @@ async function proxyAudioStream(
         responseHeaders.set("Content-Range", contentRange);
       }
 
+      // Pipe audio stream through a Next.js streaming ReadableStream
       return new Response(audioResponse.body, {
         status: audioResponse.status,
         headers: responseHeaders,
@@ -169,7 +186,11 @@ export async function GET(request: NextRequest) {
     const id = searchParams.get("id")?.trim();
     const wantsJson =
       searchParams.get("json") === "true" ||
+      searchParams.get("direct") === "true" ||
       request.headers.get("accept")?.includes("application/json");
+    const isRetry =
+      searchParams.get("retry") === "1" ||
+      searchParams.get("refresh") === "true";
 
     if (!id) {
       return NextResponse.json(
@@ -196,9 +217,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(targetUrl, 307);
     }
 
-    // 2. PRIMARY: Direct Innertube stream resolution using @distube/ytdl-core
+    // 2. PRIMARY: Direct Innertube stream resolution via @distube/ytdl-core
     try {
-      const directStream = await resolveYouTubeAudioStream(id);
+      // If retry is requested, skip in-memory cache to obtain fresh stream tokens
+      const directStream = await resolveYouTubeAudioStream(id, isRetry);
       if (directStream && directStream.url) {
         if (wantsJson) {
           return NextResponse.json(
@@ -224,32 +246,39 @@ export async function GET(request: NextRequest) {
       console.warn(`[BeatSync Stream] Primary resolution failed for ${id}:`, err);
     }
 
-    // 3. SECONDARY: Query top Piped stream endpoints concurrently
-    let resolvedStream: PipedAudioStream | null = null;
-    let streamDuration = 0;
+    // 3. FALLBACK: Sequentially cycle through the 3 fallback Piped/Invidious instances
+    // If an instance times out (>2500ms) or returns 403/500, cycle automatically to the next
+    let fallbackResult: { stream: PipedAudioStream; duration: number } | null =
+      null;
 
-    const candidateInstances = PIPED_STREAM_INSTANCES.slice(0, 4);
-    try {
-      const winner = await Promise.any(
-        candidateInstances.map((instance) =>
-          fetchStreamFromInstance(instance, id, 1500)
-        )
-      );
-      resolvedStream = winner.stream;
-      streamDuration = winner.duration;
-    } catch {
-      // Piped instances failed
+    for (const instance of FALLBACK_STREAM_INSTANCES) {
+      try {
+        const result = await fetchStreamFromInstance(instance, id, 2500);
+        if (result && result.stream?.url) {
+          fallbackResult = result;
+          console.log(
+            `[BeatSync Stream] Successfully resolved stream from fallback: ${instance}`
+          );
+          break;
+        }
+      } catch (instanceErr: any) {
+        console.warn(
+          `[BeatSync Stream] Fallback instance ${instance} failed (${instanceErr?.message || "error"}). Cycling to next...`
+        );
+      }
     }
 
-    if (resolvedStream && resolvedStream.url) {
+    if (fallbackResult && fallbackResult.stream?.url) {
+      const { stream, duration } = fallbackResult;
+
       if (wantsJson) {
         return NextResponse.json(
           {
-            streamUrl: resolvedStream.url,
-            duration: streamDuration,
-            format: resolvedStream.format || "m4a",
-            bitrate: resolvedStream.bitrate || 0,
-            mimeType: resolvedStream.mimeType || "audio/mp4",
+            streamUrl: stream.url,
+            duration,
+            format: stream.format || "m4a",
+            bitrate: stream.bitrate || 0,
+            mimeType: stream.mimeType || "audio/mp4",
             isFallback: false,
           },
           { status: 200 }
@@ -258,12 +287,12 @@ export async function GET(request: NextRequest) {
 
       return await proxyAudioStream(
         request,
-        resolvedStream.url,
-        resolvedStream.mimeType || "audio/mp4"
+        stream.url,
+        stream.mimeType || "audio/mp4"
       );
     }
 
-    // 4. Fallback: If all external resolutions failed, use deterministic mock
+    // 4. Deterministic Mock Fallback: If all upstream resolutions failed
     const hash = id.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
     const fallbackTrack =
       MOCK_TRACKS[Math.abs(hash) % MOCK_TRACKS.length] || MOCK_TRACKS[0];

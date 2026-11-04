@@ -38,6 +38,7 @@ export interface AudioState {
 let audioInstance: HTMLAudioElement | null = null;
 let consecutiveErrors = 0;
 let skipTimer: ReturnType<typeof setTimeout> | null = null;
+let retryAttemptedForTrackId: string | null = null;
 
 const getAudioElement = (): HTMLAudioElement | null => {
   if (typeof window === 'undefined') {
@@ -152,11 +153,15 @@ export const useAudioStore = create<AudioState>((set, get) => {
 
       audio.addEventListener('playing', () => {
         consecutiveErrors = 0;
+        retryAttemptedForTrackId = null;
         if (skipTimer) {
           clearTimeout(skipTimer);
           skipTimer = null;
         }
         set({ isPlaying: true, isLoadingStream: false });
+        if (get().toastMessage === 'Re-routing stream...') {
+          set({ toastMessage: null });
+        }
       });
 
       audio.addEventListener('play', () => {
@@ -167,14 +172,89 @@ export const useAudioStore = create<AudioState>((set, get) => {
         set({ isPlaying: false });
       });
 
+      // Audio error recovery & streaming fallback
       audio.addEventListener('error', (e) => {
         console.error('[BeatSync Audio] Error playing audio:', e);
-        set({
-          isPlaying: false,
-          isLoadingStream: false,
-          toastMessage: 'Unable to stream this track. Skipping...',
-        });
-        scheduleSkipNext(() => get().playNext(), set, get().queue.length);
+        const { currentTrack, queue } = get();
+
+        if (!currentTrack) {
+          set({ isPlaying: false, isLoadingStream: false });
+          return;
+        }
+
+        // Check if an automatic retry has already been attempted for this track
+        const canRetry = retryAttemptedForTrackId !== currentTrack.id;
+
+        if (canRetry) {
+          retryAttemptedForTrackId = currentTrack.id;
+          console.warn(
+            `[BeatSync Audio] Stream playback error on "${currentTrack.title}". Attempting automatic recovery...`
+          );
+
+          // Display unobtrusive toast notification: "Re-routing stream..."
+          set({
+            isPlaying: false,
+            isLoadingStream: true,
+            toastMessage: 'Re-routing stream...',
+          });
+
+          // Attempt one automatic retry with a fresh stream URL
+          setTimeout(() => {
+            const currentAudio = getAudioElement();
+            if (!currentAudio || get().currentTrack?.id !== currentTrack.id) return;
+
+            // Cache-busting fresh stream URL with retry=1 to obtain fresh upstream tokens
+            const freshUrl = `/api/stream?id=${encodeURIComponent(currentTrack.id)}&retry=1&t=${Date.now()}`;
+            const preservedTime = currentAudio.currentTime || get().currentTime || 0;
+
+            currentAudio.src = freshUrl;
+            if (preservedTime > 0) {
+              try {
+                currentAudio.currentTime = preservedTime;
+              } catch {}
+            }
+            currentAudio.load();
+
+            const retryPromise = currentAudio.play();
+            if (retryPromise !== undefined) {
+              retryPromise
+                .then(() => {
+                  consecutiveErrors = 0;
+                  set({
+                    isPlaying: true,
+                    isLoadingStream: false,
+                  });
+                  setTimeout(() => {
+                    if (get().toastMessage === 'Re-routing stream...') {
+                      set({ toastMessage: null });
+                    }
+                  }, 2000);
+                })
+                .catch((retryErr) => {
+                  if (retryErr.name !== 'AbortError' && retryErr.name !== 'NotAllowedError') {
+                    console.warn('[BeatSync Audio] Recovery retry failed:', retryErr);
+                  }
+                  set({
+                    isPlaying: false,
+                    isLoadingStream: false,
+                    toastMessage: 'Unable to stream this track. Skipping...',
+                  });
+                  scheduleSkipNext(() => get().playNext(), set, queue.length);
+                });
+            }
+          }, 350);
+        } else {
+          // Retry was already attempted for this track and failed again
+          console.error(
+            `[BeatSync Audio] Stream recovery failed for "${currentTrack.title}". Skipping to next song.`
+          );
+          set({
+            isPlaying: false,
+            isLoadingStream: false,
+            toastMessage: 'Unable to stream this track. Skipping...',
+          });
+          scheduleSkipNext(() => get().playNext(), set, queue.length);
+        }
       });
     }
   }
@@ -272,6 +352,7 @@ export const useAudioStore = create<AudioState>((set, get) => {
         skipTimer = null;
       }
       consecutiveErrors = 0;
+      retryAttemptedForTrackId = null;
 
       const audio = getAudioElement();
       const currentQueue = get().queue;
@@ -330,6 +411,7 @@ export const useAudioStore = create<AudioState>((set, get) => {
       const { queue } = get();
       if (!queue || index < 0 || index >= queue.length) return;
 
+      retryAttemptedForTrackId = null;
       const targetTrack = queue[index];
 
       set({
@@ -381,6 +463,7 @@ export const useAudioStore = create<AudioState>((set, get) => {
         skipTimer = null;
       }
       consecutiveErrors = 0;
+      retryAttemptedForTrackId = null;
 
       // Filter initial candidates excluding selectedTrack
       const candidates = (allAvailableTracks || []).filter(
