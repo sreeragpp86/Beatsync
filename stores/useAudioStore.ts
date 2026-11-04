@@ -161,7 +161,10 @@ export const useAudioStore = create<AudioState>((set, get) => {
           skipTimer = null;
         }
         set({ isPlaying: true, isLoadingStream: false });
-        if (get().toastMessage === 'Re-routing stream...') {
+        if (
+          get().toastMessage === 'Re-routing stream...' ||
+          get().toastMessage === 'Stream failed. Auto-retrying...'
+        ) {
           set({ toastMessage: null });
         }
       });
@@ -175,7 +178,7 @@ export const useAudioStore = create<AudioState>((set, get) => {
       });
 
       // Audio error recovery & streaming fallback
-      audio.addEventListener('error', (e) => {
+      const handleAudioError = async (e: Event | string) => {
         console.error('[BeatSync Audio] Error playing audio:', e);
         const { currentTrack, queue } = get();
 
@@ -184,33 +187,51 @@ export const useAudioStore = create<AudioState>((set, get) => {
           return;
         }
 
+        // On error, toast with sonner: toast.error("Stream failed. Auto-retrying...")
+        toast.error("Stream failed. Auto-retrying...", { id: 'stream-status' });
+
         // Check if an automatic retry has already been attempted for this track
         const canRetry = retryAttemptedForTrackId !== currentTrack.id;
 
         if (canRetry) {
           retryAttemptedForTrackId = currentTrack.id;
           console.warn(
-            `[BeatSync Audio] Stream playback error on "${currentTrack.title}". Attempting automatic recovery...`
+            `[BeatSync Audio] Stream playback error on "${currentTrack.title}". Attempting force-cache refresh retry...`
           );
 
-          // Display unobtrusive toast notification: "Re-routing stream..."
-          toast.loading('Re-routing stream...', { id: 'stream-status' });
           set({
             isPlaying: false,
             isLoadingStream: true,
-            toastMessage: 'Re-routing stream...',
+            toastMessage: 'Stream failed. Auto-retrying...',
           });
 
-          // Attempt one automatic retry with a fresh stream URL
-          setTimeout(() => {
+          try {
             const currentAudio = getAudioElement();
             if (!currentAudio || get().currentTrack?.id !== currentTrack.id) return;
 
-            // Cache-busting fresh stream URL with retry=1 to obtain fresh upstream tokens
-            const freshUrl = `/api/stream?id=${encodeURIComponent(currentTrack.id)}&retry=1&t=${Date.now()}`;
             const preservedTime = currentAudio.currentTime || get().currentTime || 0;
 
-            currentAudio.src = freshUrl;
+            // Attempt one re-fetch with force-cache refresh
+            const freshRes = await fetch(
+              `/api/stream?id=${encodeURIComponent(currentTrack.id)}&json=true&retry=1&refresh=true&t=${Date.now()}`,
+              {
+                cache: 'no-store',
+                headers: {
+                  'Cache-Control': 'no-cache, no-store, must-revalidate',
+                  Pragma: 'no-cache',
+                },
+              }
+            );
+
+            let freshStreamUrl = `/api/stream?id=${encodeURIComponent(currentTrack.id)}&retry=1&t=${Date.now()}`;
+            if (freshRes.ok) {
+              const data = await freshRes.json();
+              if (data && data.streamUrl) {
+                freshStreamUrl = data.streamUrl;
+              }
+            }
+
+            currentAudio.src = freshStreamUrl;
             if (preservedTime > 0) {
               try {
                 currentAudio.currentTime = preservedTime;
@@ -220,34 +241,27 @@ export const useAudioStore = create<AudioState>((set, get) => {
 
             const retryPromise = currentAudio.play();
             if (retryPromise !== undefined) {
-              retryPromise
-                .then(() => {
-                  consecutiveErrors = 0;
-                  toast.success('Stream recovered', { id: 'stream-status' });
-                  set({
-                    isPlaying: true,
-                    isLoadingStream: false,
-                  });
-                  setTimeout(() => {
-                    if (get().toastMessage === 'Re-routing stream...') {
-                      set({ toastMessage: null });
-                    }
-                  }, 2000);
-                })
-                .catch((retryErr) => {
-                  if (retryErr.name !== 'AbortError' && retryErr.name !== 'NotAllowedError') {
-                    console.warn('[BeatSync Audio] Recovery retry failed:', retryErr);
-                  }
-                  toast.error('Unable to stream this track. Skipping...', { id: 'stream-status' });
-                  set({
-                    isPlaying: false,
-                    isLoadingStream: false,
-                    toastMessage: 'Unable to stream this track. Skipping...',
-                  });
-                  scheduleSkipNext(() => get().playNext(), set, queue.length);
-                });
+              await retryPromise;
+              consecutiveErrors = 0;
+              toast.success('Stream recovered', { id: 'stream-status' });
+              set({
+                isPlaying: true,
+                isLoadingStream: false,
+                toastMessage: null,
+              });
             }
-          }, 350);
+          } catch (retryErr: any) {
+            if (retryErr?.name !== 'AbortError' && retryErr?.name !== 'NotAllowedError') {
+              console.warn('[BeatSync Audio] Recovery retry failed:', retryErr);
+            }
+            toast.error('Unable to stream this track. Skipping...', { id: 'stream-status' });
+            set({
+              isPlaying: false,
+              isLoadingStream: false,
+              toastMessage: 'Unable to stream this track. Skipping...',
+            });
+            scheduleSkipNext(() => get().playNext(), set, queue.length);
+          }
         } else {
           // Retry was already attempted for this track and failed again
           console.error(
@@ -261,7 +275,11 @@ export const useAudioStore = create<AudioState>((set, get) => {
           });
           scheduleSkipNext(() => get().playNext(), set, queue.length);
         }
-      });
+      };
+
+      // Bind audio.onerror and addEventListener
+      audio.onerror = handleAudioError;
+      audio.addEventListener('error', handleAudioError);
     }
   }
 

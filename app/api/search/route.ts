@@ -4,6 +4,11 @@ import { MOCK_TRACKS } from "@/lib/mock-tracks";
 import { Track } from "@/types/track";
 import { searchYouTubeTracks } from "@/lib/youtube";
 
+// SWR-compatible upstream query cache headers (5 min server cache, 10 min background revalidation)
+const SWR_CACHE_HEADERS = {
+  "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+};
+
 // Reliable public Piped API instances ordered by current availability
 const PIPED_SEARCH_INSTANCES = [
   "https://pipedapi.ducks.party",
@@ -116,7 +121,10 @@ export async function GET(request: NextRequest) {
             .limit(20);
 
           if (!error && data && data.length > 0) {
-            return NextResponse.json({ tracks: data as Track[] }, { status: 200 });
+            return NextResponse.json(
+              { tracks: data as Track[] },
+              { status: 200, headers: SWR_CACHE_HEADERS }
+            );
           }
         } catch (dbErr) {
           console.warn("[BeatSync Search] Supabase fallback error:", dbErr);
@@ -125,7 +133,7 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json(
         { tracks: MOCK_TRACKS.slice(0, 20) },
-        { status: 200 }
+        { status: 200, headers: SWR_CACHE_HEADERS }
       );
     }
 
@@ -133,7 +141,10 @@ export async function GET(request: NextRequest) {
     try {
       const primaryResults = await searchYouTubeTracks(query, 25);
       if (primaryResults.length > 0) {
-        return NextResponse.json({ tracks: primaryResults }, { status: 200 });
+        return NextResponse.json(
+          { tracks: primaryResults },
+          { status: 200, headers: SWR_CACHE_HEADERS }
+        );
       }
     } catch (err) {
       console.warn(`[BeatSync Search] Primary Innertube search failed for "${query}":`, err);
@@ -146,7 +157,10 @@ export async function GET(request: NextRequest) {
         candidates.map((inst) => fetchSearchFromInstance(inst, query, 1800))
       );
       if (results && results.length > 0) {
-        return NextResponse.json({ tracks: results }, { status: 200 });
+        return NextResponse.json(
+          { tracks: results },
+          { status: 200, headers: SWR_CACHE_HEADERS }
+        );
       }
     } catch {
       // Parallel fetch failed or timed out
@@ -167,7 +181,10 @@ export async function GET(request: NextRequest) {
           .limit(20);
 
         if (!error && data && data.length > 0) {
-          return NextResponse.json({ tracks: data as Track[] }, { status: 200 });
+          return NextResponse.json(
+            { tracks: data as Track[] },
+            { status: 200, headers: SWR_CACHE_HEADERS }
+          );
         }
       } catch (dbErr) {
         console.warn("[BeatSync Search] Supabase query error:", dbErr);
@@ -183,12 +200,15 @@ export async function GET(request: NextRequest) {
         (track.album && track.album.toLowerCase().includes(lowerQuery))
     );
 
-    return NextResponse.json({ tracks: matchedMocks }, { status: 200 });
+    return NextResponse.json(
+      { tracks: matchedMocks },
+      { status: 200, headers: SWR_CACHE_HEADERS }
+    );
   } catch (error) {
     console.error("[BeatSync Search API] Unexpected error:", error);
     return NextResponse.json(
       { tracks: MOCK_TRACKS.slice(0, 10), error: "Internal search error" },
-      { status: 200 }
+      { status: 200, headers: SWR_CACHE_HEADERS }
     );
   }
 }
