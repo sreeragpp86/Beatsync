@@ -1,16 +1,16 @@
 @import "tailwindcss";
 
 :root {
-  --background: #09090b; /* zinc-950 */
-  --surface: #18181b;    /* zinc-900 */
-  --surface-raised: #27272a; /* zinc-800 */
-  --surface-border: #3f3f46; /* zinc-700 */
-  --foreground: #f4f4f5; /* zinc-100 */
-  --muted: #a1a1aa;      /* zinc-400 */
-  --accent-emerald: #10b981; /* emerald-500 */
-  --accent-emerald-hover: #059669; /* emerald-600 */
-  --accent-violet: #8b5cf6;  /* violet-500 */
-  --accent-violet-hover: #7c3aed;  /* violet-600 */
+  --background: #06060c;
+  --surface: rgba(18, 18, 30, 0.45);
+  --surface-raised: rgba(255, 255, 255, 0.06);
+  --surface-border: rgba(255, 255, 255, 0.10);
+  --foreground: #f4f4f5;
+  --muted: #a1a1aa;
+  --accent-emerald: #10b981;
+  --accent-emerald-hover: #059669;
+  --accent-violet: #8b5cf6;
+  --accent-violet-hover: #7c3aed;
 }
 
 @theme inline {
@@ -29,16 +29,283 @@
 }
 
 body {
-  background-color: var(--background);
-  color: var(--foreground);
+  background-color: #06060c;
+  color: #f4f4f5;
   font-family: var(--font-sans);
   color-scheme: dark;
 }
 
-/* Custom scrollbar for dark theme */
+/* ==========================================================================
+   AMBIENT LUMINOUS GLOW MESH FOR GLASSMORPHISM
+   ========================================================================== */
+.ambient-orb {
+  position: absolute;
+  border-radius: 9999px;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  will-change: transform, opacity;
+}
+
+.ambient-orb-1 {
+  top: -15%;
+  left: -10%;
+  width: 55vw;
+  height: 55vw;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.18) 0%, rgba(6, 182, 212, 0.08) 50%, transparent 75%);
+  filter: blur(90px);
+  animation: float-orb-1 14s ease-in-out infinite alternate;
+}
+
+.ambient-orb-2 {
+  top: 5%;
+  right: -15%;
+  width: 50vw;
+  height: 50vw;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.20) 0%, rgba(99, 102, 241, 0.08) 50%, transparent 75%);
+  filter: blur(100px);
+  animation: float-orb-2 18s ease-in-out infinite alternate;
+}
+
+.ambient-orb-3 {
+  bottom: -20%;
+  left: 20%;
+  width: 60vw;
+  height: 60vw;
+  background: radial-gradient(circle, rgba(79, 70, 229, 0.16) 0%, rgba(14, 165, 233, 0.06) 50%, transparent 75%);
+  filter: blur(110px);
+  animation: float-orb-3 16s ease-in-out infinite alternate;
+}
+
+.ambient-orb-4 {
+  top: 40%;
+  left: 30%;
+  width: 35vw;
+  height: 35vw;
+  background: radial-gradient(circle, rgba(236, 72, 153, 0.12) 0%, rgba(168, 85, 247, 0.05) 50%, transparent 75%);
+  filter: blur(85px);
+  animation: float-orb-4 12s ease-in-out infinite alternate;
+}
+
+@keyframes float-orb-1 {
+  0% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(4vw, 5vh) scale(1.08); }
+  100% { transform: translate(-3vw, 2vh) scale(0.95); }
+}
+
+@keyframes float-orb-2 {
+  0% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-5vw, 6vh) scale(1.1); }
+  100% { transform: translate(3vw, -4vh) scale(0.92); }
+}
+
+@keyframes float-orb-3 {
+  0% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(3vw, -5vh) scale(1.05); }
+  100% { transform: translate(-4vw, 3vh) scale(0.97); }
+}
+
+@keyframes float-orb-4 {
+  0% { transform: translate(0, 0) scale(1); opacity: 0.8; }
+  50% { transform: translate(6vw, -3vh) scale(1.15); opacity: 1; }
+  100% { transform: translate(-2vw, 4vh) scale(0.9); opacity: 0.7; }
+}
+
+/* ==========================================================================
+   GLASSMORPHISM CORE SURFACE & CONTAINERS
+   ========================================================================== */
+.glass-panel,
+main {
+  background: rgba(14, 14, 24, 0.50) !important;
+  backdrop-filter: blur(28px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.10) !important;
+  box-shadow: 0 16px 40px 0 rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
+  border-radius: 20px !important;
+}
+
+/* Sidebar Glass Containers */
+aside:first-of-type > div,
+aside div.bg-\[\#121212\] {
+  background: rgba(14, 14, 24, 0.50) !important;
+  backdrop-filter: blur(28px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.10) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 12px 32px 0 rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Sticky Header Glass Bar */
+header.sticky,
+header {
+  background: rgba(12, 12, 22, 0.60) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Search Bar Input Glass Pill */
+header div.relative.flex.items-center.rounded-full,
+div.bg-\[\#242424\] {
+  background: rgba(255, 255, 255, 0.05) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.10), 0 4px 16px rgba(0, 0, 0, 0.2) !important;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+header div.relative.flex.items-center.rounded-full:hover,
+div.bg-\[\#242424\]:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.20) !important;
+}
+
+header div.relative.flex.items-center.rounded-full:focus-within {
+  background: rgba(255, 255, 255, 0.10) !important;
+  border-color: rgba(29, 185, 84, 0.60) !important;
+  box-shadow: 0 0 24px rgba(29, 185, 84, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.15) !important;
+}
+
+/* ==========================================================================
+   GLASSMORPHISM TRACK CARDS & TILES
+   ========================================================================== */
+div.group.relative.flex.flex-col,
+div.bg-\[\#181818\] {
+  background: rgba(255, 255, 255, 0.04) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+div.group.relative.flex.flex-col:hover,
+div.bg-\[\#181818\]:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.22) !important;
+  transform: translateY(-4px) !important;
+  box-shadow: 0 18px 36px -6px rgba(0, 0, 0, 0.5), 0 0 20px rgba(29, 185, 84, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.20) !important;
+}
+
+div.group.relative.flex.flex-col.bg-\[\#282828\],
+div.bg-\[\#282828\] {
+  background: rgba(255, 255, 255, 0.09) !important;
+  backdrop-filter: blur(18px) !important;
+  -webkit-backdrop-filter: blur(18px) !important;
+  border: 1px solid rgba(29, 185, 84, 0.35) !important;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35), 0 0 16px rgba(29, 185, 84, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
+}
+
+/* Card Artwork Inner Glass Container */
+div.group.relative.flex.flex-col .aspect-square {
+  border-radius: 12px !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35) !important;
+}
+
+/* ==========================================================================
+   GLASSMORPHISM FIXED BOTTOM PLAYER DOCK
+   ========================================================================== */
+footer,
+footer.fixed.bottom-0 {
+  background: rgba(10, 10, 18, 0.70) !important;
+  backdrop-filter: blur(36px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(36px) saturate(200%) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 -8px 36px 0 rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.16) !important;
+}
+
+/* Player Artwork Box */
+footer div.relative.h-14.w-14 {
+  border-radius: 10px !important;
+  border: 1px solid rgba(255, 255, 255, 0.10) !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* ==========================================================================
+   GLASSMORPHISM SLIDE-OVER QUEUE DRAWER
+   ========================================================================== */
+aside[aria-label*="Queue"] {
+  background: rgba(12, 12, 22, 0.78) !important;
+  backdrop-filter: blur(40px) saturate(210%) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(210%) !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.14) !important;
+  box-shadow: -12px 0 48px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Queue items */
+aside[aria-label*="Queue"] div[draggable="true"] {
+  background: rgba(255, 255, 255, 0.03) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-radius: 12px !important;
+  transition: all 0.2s ease !important;
+}
+
+aside[aria-label*="Queue"] div[draggable="true"]:hover {
+  background: rgba(255, 255, 255, 0.07) !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  transform: translateX(2px) !important;
+}
+
+/* ==========================================================================
+   GLASS BUTTONS, PILLS & INTERACTIVE CONTROLS
+   ========================================================================== */
+/* Spotify Green Glass Button */
+button.bg-\[\#1DB954\],
+.bg-\[\#1DB954\] {
+  background: linear-gradient(135deg, #1ed760 0%, #1db954 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.28) !important;
+  box-shadow: 0 4px 20px rgba(29, 185, 84, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.45) !important;
+}
+
+button.bg-\[\#1DB954\]:hover,
+.bg-\[\#1DB954\]:hover {
+  box-shadow: 0 6px 26px rgba(29, 185, 84, 0.65), inset 0 1px 1px rgba(255, 255, 255, 0.55) !important;
+}
+
+/* Circular navigation buttons */
+header button.rounded-full,
+aside button.rounded-full {
+  background: rgba(255, 255, 255, 0.06) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.10) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10) !important;
+  transition: all 0.2s ease !important;
+}
+
+header button.rounded-full:hover,
+aside button.rounded-full:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+  border-color: rgba(255, 255, 255, 0.22) !important;
+  transform: scale(1.05) !important;
+}
+
+/* Track rows / Table rows */
+div.group.flex.items-center.justify-between,
+div.lg\:col-span-7 div.group.flex {
+  border-radius: 12px !important;
+  border: 1px solid transparent !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+div.group.flex.items-center.justify-between:hover,
+div.lg\:col-span-7 div.group.flex:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border-color: rgba(255, 255, 255, 0.10) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Custom glass scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
 }
 
 ::-webkit-scrollbar-track {
@@ -46,12 +313,13 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #282828;
-  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+  backdrop-filter: blur(8px);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #4d4d4d;
+  background: rgba(255, 255, 255, 0.25);
 }
 
 /* Custom styled range slider thumbs */
@@ -63,13 +331,15 @@ input[type="range"]::-webkit-slider-thumb {
   border-radius: 9999px;
   background: #ffffff;
   cursor: pointer;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
-  transition: transform 0.1s ease-in-out, background-color 0.1s ease-in-out;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6), 0 0 10px rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  transition: transform 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 input[type="range"]:hover::-webkit-slider-thumb {
-  transform: scale(1.2);
+  transform: scale(1.25);
   background: #1DB954;
+  box-shadow: 0 0 12px rgba(29, 185, 84, 0.8);
 }
 
 input[type="range"]::-moz-range-thumb {
@@ -77,15 +347,16 @@ input[type="range"]::-moz-range-thumb {
   width: 12px;
   border-radius: 9999px;
   background: #ffffff;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.8);
   cursor: pointer;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
-  transition: transform 0.1s ease-in-out, background-color 0.1s ease-in-out;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6), 0 0 10px rgba(255, 255, 255, 0.4);
+  transition: transform 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 input[type="range"]:hover::-moz-range-thumb {
-  transform: scale(1.2);
+  transform: scale(1.25);
   background: #1DB954;
+  box-shadow: 0 0 12px rgba(29, 185, 84, 0.8);
 }
 
 /* Animated soundwave bars for currently playing track */
