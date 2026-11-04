@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { MOCK_TRACKS } from "@/lib/mock-tracks";
+import { resolveYouTubeAudioStream } from "@/lib/youtube";
 
-// Reliable public Piped instances for stream resolving
+// Reliable public Piped instances for stream resolving fallback
 const PIPED_STREAM_INSTANCES = [
   "https://pipedapi.ducks.party",
   "https://api.piped.private.coffee",
@@ -40,7 +41,6 @@ interface PipedStreamResponse {
 function selectBestAudioStream(data: PipedStreamResponse): PipedAudioStream | null {
   const audioStreams = Array.isArray(data.audioStreams) ? data.audioStreams : [];
 
-  // 1. Try to find audio-only stream (m4a or opus preferred with highest bitrate)
   const validAudio = audioStreams.filter((s) => Boolean(s?.url));
   if (validAudio.length > 0) {
     validAudio.sort((a, b) => {
@@ -57,7 +57,6 @@ function selectBestAudioStream(data: PipedStreamResponse): PipedAudioStream | nu
     return validAudio[0];
   }
 
-  // 2. Fallback: check videoStreams with audio track (videoOnly === false)
   const videoStreams = Array.isArray(data.videoStreams) ? data.videoStreams : [];
   const withAudio = videoStreams.filter(
     (v) => v.videoOnly === false && Boolean(v.url)
@@ -110,6 +109,60 @@ async function fetchStreamFromInstance(
   };
 }
 
+async function proxyAudioStream(
+  request: NextRequest,
+  targetUrl: string,
+  mimeType = "audio/mp4"
+): Promise<Response> {
+  const clientRange = request.headers.get("range");
+  const upstreamHeaders: Record<string, string> = {
+    "User-Agent":
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    Accept: "*/*",
+  };
+
+  if (clientRange) {
+    upstreamHeaders["Range"] = clientRange;
+  }
+
+  try {
+    const audioResponse = await fetch(targetUrl, {
+      headers: upstreamHeaders,
+      signal: AbortSignal.timeout(12000),
+    });
+
+    if (audioResponse.ok || audioResponse.status === 206) {
+      const responseHeaders = new Headers();
+      responseHeaders.set(
+        "Content-Type",
+        audioResponse.headers.get("content-type") || mimeType || "audio/mp4"
+      );
+      responseHeaders.set("Accept-Ranges", "bytes");
+      responseHeaders.set("Access-Control-Allow-Origin", "*");
+      responseHeaders.set("Cache-Control", "public, max-age=3600");
+
+      const contentLength = audioResponse.headers.get("content-length");
+      if (contentLength) {
+        responseHeaders.set("Content-Length", contentLength);
+      }
+      const contentRange = audioResponse.headers.get("content-range");
+      if (contentRange) {
+        responseHeaders.set("Content-Range", contentRange);
+      }
+
+      return new Response(audioResponse.body, {
+        status: audioResponse.status,
+        headers: responseHeaders,
+      });
+    }
+  } catch (pipeErr) {
+    console.warn("[BeatSync Stream] Direct pipe error, redirecting:", pipeErr);
+  }
+
+  // Fallback redirect directly to the audio stream URL
+  return NextResponse.redirect(targetUrl, 307);
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -143,7 +196,35 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(targetUrl, 307);
     }
 
-    // 2. Query top Piped stream endpoints concurrently with Promise.any
+    // 2. PRIMARY: Direct Innertube stream resolution using @distube/ytdl-core
+    try {
+      const directStream = await resolveYouTubeAudioStream(id);
+      if (directStream && directStream.url) {
+        if (wantsJson) {
+          return NextResponse.json(
+            {
+              streamUrl: directStream.url,
+              duration: directStream.duration,
+              format: "m4a",
+              bitrate: directStream.bitrate || 128000,
+              mimeType: directStream.mimeType || "audio/mp4",
+              isFallback: false,
+            },
+            { status: 200 }
+          );
+        }
+
+        return await proxyAudioStream(
+          request,
+          directStream.url,
+          directStream.mimeType
+        );
+      }
+    } catch (err) {
+      console.warn(`[BeatSync Stream] Primary resolution failed for ${id}:`, err);
+    }
+
+    // 3. SECONDARY: Query top Piped stream endpoints concurrently
     let resolvedStream: PipedAudioStream | null = null;
     let streamDuration = 0;
 
@@ -157,12 +238,10 @@ export async function GET(request: NextRequest) {
       resolvedStream = winner.stream;
       streamDuration = winner.duration;
     } catch {
-      // External Piped instances failed or rate-limited by YouTube bot detection
+      // Piped instances failed
     }
 
-    // 3. If stream resolved successfully from upstream
     if (resolvedStream && resolvedStream.url) {
-      // If client explicitly requested JSON metadata
       if (wantsJson) {
         return NextResponse.json(
           {
@@ -177,68 +256,20 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      // Default: Audio playback stream proxy with HTTP Range support
-      const clientRange = request.headers.get("range");
-      const upstreamHeaders: Record<string, string> = {
-        "User-Agent":
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        Accept: "*/*",
-      };
-
-      if (clientRange) {
-        upstreamHeaders["Range"] = clientRange;
-      }
-
-      try {
-        const audioResponse = await fetch(resolvedStream.url, {
-          headers: upstreamHeaders,
-          signal: AbortSignal.timeout(8000),
-        });
-
-        if (audioResponse.ok || audioResponse.status === 206) {
-          const responseHeaders = new Headers();
-          responseHeaders.set(
-            "Content-Type",
-            audioResponse.headers.get("content-type") ||
-              resolvedStream.mimeType ||
-              "audio/mp4"
-          );
-          responseHeaders.set("Accept-Ranges", "bytes");
-          responseHeaders.set("Access-Control-Allow-Origin", "*");
-          responseHeaders.set("Cache-Control", "public, max-age=3600");
-
-          const contentLength = audioResponse.headers.get("content-length");
-          if (contentLength) {
-            responseHeaders.set("Content-Length", contentLength);
-          }
-          const contentRange = audioResponse.headers.get("content-range");
-          if (contentRange) {
-            responseHeaders.set("Content-Range", contentRange);
-          }
-
-          return new Response(audioResponse.body, {
-            status: audioResponse.status,
-            headers: responseHeaders,
-          });
-        }
-      } catch (pipeErr) {
-        console.warn(
-          "[BeatSync Stream] Direct pipe error, falling back to 307 redirect:",
-          pipeErr
-        );
-      }
-
-      // Fallback redirect directly to the audio stream URL
-      return NextResponse.redirect(resolvedStream.url, 307);
+      return await proxyAudioStream(
+        request,
+        resolvedStream.url,
+        resolvedStream.mimeType || "audio/mp4"
+      );
     }
 
-    // 4. Stream resolution failed across all external instances -> Seamless deterministic fallback
+    // 4. Fallback: If all external resolutions failed, use deterministic mock
     const hash = id.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
     const fallbackTrack =
       MOCK_TRACKS[Math.abs(hash) % MOCK_TRACKS.length] || MOCK_TRACKS[0];
 
     console.warn(
-      `[BeatSync Stream] External resolution failed for track ID: ${id}. Falling back to "${fallbackTrack.title}" (${fallbackTrack.audio_url})`
+      `[BeatSync Stream] All upstream resolutions failed for ${id}. Using fallback "${fallbackTrack.title}"`
     );
 
     if (wantsJson) {
@@ -260,7 +291,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Direct audio element request: Redirect to high-fidelity MP3 stream
     const fallbackTarget = fallbackTrack.audio_url.startsWith("http")
       ? fallbackTrack.audio_url
       : new URL(fallbackTrack.audio_url, request.url).toString();
@@ -268,26 +298,9 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("[BeatSync Stream API] Unexpected error:", error);
     const fallback = MOCK_TRACKS[0];
-    const wantsJson =
-      request.nextUrl.searchParams.get("json") === "true" ||
-      request.headers.get("accept")?.includes("application/json");
-
-    if (wantsJson) {
-      return NextResponse.json(
-        {
-          streamUrl: fallback.audio_url,
-          duration: fallback.duration,
-          title: fallback.title,
-          artist: fallback.artist,
-          isFallback: true,
-        },
-        { status: 200 }
-      );
-    }
-
-    const errTarget = fallback.audio_url.startsWith("http")
+    const fallbackTarget = fallback.audio_url.startsWith("http")
       ? fallback.audio_url
       : new URL(fallback.audio_url, request.url).toString();
-    return NextResponse.redirect(errTarget, 307);
+    return NextResponse.redirect(fallbackTarget, 307);
   }
 }

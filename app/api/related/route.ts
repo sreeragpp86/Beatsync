@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { MOCK_TRACKS } from "@/lib/mock-tracks";
 import { Track } from "@/types/track";
+import { getRelatedYouTubeTracks } from "@/lib/youtube";
 
-// Reliable public Piped instances for related streams resolution
+// Reliable public Piped instances for related streams resolution fallback
 const PIPED_RELATED_INSTANCES = [
   "https://pipedapi.ducks.party",
   "https://api.piped.private.coffee",
@@ -111,7 +112,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ tracks: candidates.slice(0, 15) }, { status: 200 });
     }
 
-    // 2. Fetch related songs based on artist or title in parallel with fast failover
+    // 2. PRIMARY: Fetch real related YouTube tracks via Innertube
+    try {
+      const relatedTracks = await getRelatedYouTubeTracks(id, 15);
+      if (relatedTracks.length > 0) {
+        return NextResponse.json({ tracks: relatedTracks }, { status: 200 });
+      }
+    } catch (err) {
+      console.warn(`[BeatSync Related API] Primary resolution failed for ${id}:`, err);
+    }
+
+    // 3. SECONDARY: Query Piped search instances in parallel
     const searchQuery = artist || title || "popular music";
     try {
       const results = await Promise.any(
@@ -126,7 +137,7 @@ export async function GET(request: NextRequest) {
       // Parallel fetch failed or timed out
     }
 
-    // 3. Fallback: Return diverse tracks from local catalog
+    // 4. Fallback: Return diverse tracks from local catalog
     const localCandidates = MOCK_TRACKS.filter((t) => t.id !== id);
     return NextResponse.json(
       { tracks: localCandidates.slice(0, 15) },

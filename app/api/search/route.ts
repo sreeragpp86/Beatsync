@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { MOCK_TRACKS } from "@/lib/mock-tracks";
 import { Track } from "@/types/track";
+import { searchYouTubeTracks } from "@/lib/youtube";
 
 // Reliable public Piped API instances ordered by current availability
 const PIPED_SEARCH_INSTANCES = [
@@ -43,7 +44,6 @@ function getHighResCover(thumbnail?: string, videoId?: string): string {
     return "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=80";
   }
 
-  // If thumbnail has standard Google / Piped size params (=w120-h120, =s120, etc.), upgrade to 500x500
   if (thumbnail.includes("=w") || thumbnail.includes("=s")) {
     return thumbnail.replace(/=w\d+-h\d+.*$/, "=w500-h500-l90-rj");
   }
@@ -129,7 +129,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 2. Query is present: Fetch from Piped API instances in parallel with fast failover
+    // 2. PRIMARY: Direct Innertube Search via @distube/ytdl-core
+    try {
+      const primaryResults = await searchYouTubeTracks(query, 25);
+      if (primaryResults.length > 0) {
+        return NextResponse.json({ tracks: primaryResults }, { status: 200 });
+      }
+    } catch (err) {
+      console.warn(`[BeatSync Search] Primary Innertube search failed for "${query}":`, err);
+    }
+
+    // 3. SECONDARY: Query Piped API instances in parallel with fast failover
     try {
       const candidates = PIPED_SEARCH_INSTANCES.slice(0, 4);
       const results = await Promise.any(
@@ -142,9 +152,9 @@ export async function GET(request: NextRequest) {
       // Parallel fetch failed or timed out
     }
 
-    // 3. Fallback: If external APIs failed or returned 0 results, query Supabase or local mock tracks
+    // 4. Fallback: If external APIs failed or returned 0 results, query Supabase or local mock tracks
     console.warn(
-      `[BeatSync Search] External Piped APIs unreachable or returned 0 items for "${query}". Falling back to local catalog.`
+      `[BeatSync Search] External APIs unreachable or returned 0 items for "${query}". Falling back to local catalog.`
     );
 
     if (isSupabaseConfigured) {
@@ -160,26 +170,24 @@ export async function GET(request: NextRequest) {
           return NextResponse.json({ tracks: data as Track[] }, { status: 200 });
         }
       } catch (dbErr) {
-        console.warn("[BeatSync Search] Supabase fallback failed:", dbErr);
+        console.warn("[BeatSync Search] Supabase query error:", dbErr);
       }
     }
 
-    const qLower = query.toLowerCase();
-    const mockMatches = MOCK_TRACKS.filter(
+    // Lowercase matching against local mock tracks
+    const lowerQuery = query.toLowerCase();
+    const matchedMocks = MOCK_TRACKS.filter(
       (track) =>
-        track.title.toLowerCase().includes(qLower) ||
-        track.artist.toLowerCase().includes(qLower) ||
-        (track.album && track.album.toLowerCase().includes(qLower))
+        track.title.toLowerCase().includes(lowerQuery) ||
+        track.artist.toLowerCase().includes(lowerQuery) ||
+        (track.album && track.album.toLowerCase().includes(lowerQuery))
     );
 
-    return NextResponse.json(
-      { tracks: mockMatches.slice(0, 20) },
-      { status: 200 }
-    );
+    return NextResponse.json({ tracks: matchedMocks }, { status: 200 });
   } catch (error) {
-    console.error("[BeatSync Search API] Unexpected server error:", error);
+    console.error("[BeatSync Search API] Unexpected error:", error);
     return NextResponse.json(
-      { tracks: MOCK_TRACKS.slice(0, 20) },
+      { tracks: MOCK_TRACKS.slice(0, 10), error: "Internal search error" },
       { status: 200 }
     );
   }
