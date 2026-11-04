@@ -396,7 +396,7 @@ function HomeContent() {
 
                             {/* Duration & Like Button */}
                             <div className="flex items-center gap-3 shrink-0 pr-2">
-                              <LikeButton trackId={track.id} size={16} />
+                              <LikeButton track={track} trackId={track.id} size={16} />
                               <span className="text-xs font-mono text-[#B3B3B3] tabular-nums">
                                 {formatTime(track.duration)}
                               </span>

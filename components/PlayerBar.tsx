@@ -172,7 +172,7 @@ export function PlayerBar() {
 
           {currentTrack && (
             <div className="shrink-0">
-              <LikeButton trackId={currentTrack.id} size={18} />
+              <LikeButton track={currentTrack} trackId={currentTrack.id} size={18} />
             </div>
           )}
         </div>

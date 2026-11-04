@@ -1,143 +1,188 @@
-import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
+import { Track } from "@/types/track";
+import { MOCK_TRACKS } from "@/lib/mock-tracks";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
-const CLIENT_ID_STORAGE_KEY = 'soundwave_client_uuid';
+const CLIENT_ID_STORAGE_KEY = "beatsync_client_uuid";
 
 /**
  * Retrieves or generates a persistent client UUID for user identification.
- * Uses crypto.randomUUID() and persists across sessions in localStorage.
  */
 export const getClientIdentifier = (): string => {
-  if (typeof window === 'undefined') {
-    return 'anonymous-user';
+  if (typeof window === "undefined") {
+    return "anonymous-user";
   }
 
   let clientId = localStorage.getItem(CLIENT_ID_STORAGE_KEY);
   if (!clientId) {
     clientId =
-      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
         ? crypto.randomUUID()
-        : 'client-' + Math.random().toString(36).substring(2, 15);
+        : "client-" + Math.random().toString(36).substring(2, 15);
     localStorage.setItem(CLIENT_ID_STORAGE_KEY, clientId);
   }
   return clientId;
 };
 
 export interface LikesState {
+  likedTracks: Track[];
   likedTrackIds: string[];
-  toggleLike: (trackId: string) => Promise<void>;
+  toggleLike: (track: Track | string) => void;
   isLiked: (trackId: string) => boolean;
+  getLikedTracks: () => Track[];
   syncLikes: () => Promise<void>;
 }
 
 export const useLikesStore = create<LikesState>()(
   persist(
     (set, get) => ({
+      likedTracks: [],
       likedTrackIds: [],
 
       isLiked: (trackId: string) => {
-        return get().likedTrackIds.includes(trackId);
+        if (!trackId) return false;
+        const { likedTrackIds } = get();
+        return likedTrackIds.includes(trackId);
       },
 
-      toggleLike: async (trackId: string) => {
-        const { likedTrackIds } = get();
-        const isCurrentlyLiked = likedTrackIds.includes(trackId);
+      getLikedTracks: () => {
+        return get().likedTracks || [];
+      },
 
-        // 1. Optimistic local state update
-        const nextLikedTrackIds = isCurrentlyLiked
-          ? likedTrackIds.filter((id) => id !== trackId)
-          : [...likedTrackIds, trackId];
+      toggleLike: (trackInput: Track | string) => {
+        const { likedTracks } = get();
 
-        set({ likedTrackIds: nextLikedTrackIds });
+        // Resolve full track object
+        let track: Track;
+        let trackId: string;
 
-        // 2. Background sync to Supabase if configured
-        if (!isSupabaseConfigured || typeof window === 'undefined') {
+        if (typeof trackInput === "string") {
+          trackId = trackInput.trim();
+          const existing = likedTracks.find((t) => t.id === trackId);
+          if (existing) {
+            track = existing;
+          } else {
+            const mock = MOCK_TRACKS.find((t) => t.id === trackId);
+            track = mock || {
+              id: trackId,
+              title: "Liked Track",
+              artist: "Unknown Artist",
+              album: "Liked Songs",
+              duration: 180,
+              cover_url: `https://i.ytimg.com/vi/${trackId}/hqdefault.jpg`,
+              audio_url: `/api/stream?id=${encodeURIComponent(trackId)}`,
+            };
+          }
+        } else {
+          track = trackInput;
+          trackId = track.id;
+        }
+
+        if (!trackId) return;
+
+        const isCurrentlyLiked = likedTracks.some((t) => t.id === trackId);
+
+        // Prepend when liked, remove when unliked
+        const nextLikedTracks = isCurrentlyLiked
+          ? likedTracks.filter((t) => t.id !== trackId)
+          : [track, ...likedTracks.filter((t) => t.id !== trackId)];
+
+        const nextLikedTrackIds = nextLikedTracks.map((t) => t.id);
+
+        set({
+          likedTracks: nextLikedTracks,
+          likedTrackIds: nextLikedTrackIds,
+        });
+
+        // Background sync to Supabase if configured
+        if (!isSupabaseConfigured || typeof window === "undefined") {
           return;
         }
 
-        try {
-          const userIdentifier = getClientIdentifier();
-
-          if (isCurrentlyLiked) {
-            // Remove from Supabase
-            const { error } = await supabase
-              .from('liked_tracks')
-              .delete()
-              .eq('track_id', trackId)
-              .eq('user_identifier', userIdentifier);
-
-            if (error) {
-              console.warn(
-                `[SoundWave Likes] Failed to delete like in Supabase for track ${trackId}:`,
-                error.message
-              );
-            }
-          } else {
-            // Upsert into Supabase
-            const { error } = await supabase
-              .from('liked_tracks')
-              .upsert(
+        (async () => {
+          try {
+            const userIdentifier = getClientIdentifier();
+            if (isCurrentlyLiked) {
+              await supabase
+                .from("liked_tracks")
+                .delete()
+                .eq("track_id", trackId)
+                .eq("user_identifier", userIdentifier);
+            } else {
+              await supabase.from("liked_tracks").upsert(
                 {
                   track_id: trackId,
                   user_identifier: userIdentifier,
                 },
-                { onConflict: 'track_id,user_identifier' }
-              );
-
-            if (error) {
-              console.warn(
-                `[SoundWave Likes] Failed to save like in Supabase for track ${trackId}:`,
-                error.message
+                { onConflict: "track_id,user_identifier" }
               );
             }
+          } catch (err) {
+            console.warn("[BeatSync Likes] Background Supabase sync error:", err);
           }
-        } catch (err) {
-          console.warn('[SoundWave Likes] Error during toggleLike sync:', err);
-        }
+        })();
       },
 
       syncLikes: async () => {
-        if (!isSupabaseConfigured || typeof window === 'undefined') {
+        if (!isSupabaseConfigured || typeof window === "undefined") {
           return;
         }
 
         try {
           const userIdentifier = getClientIdentifier();
           const { data, error } = await supabase
-            .from('liked_tracks')
-            .select('track_id')
-            .eq('user_identifier', userIdentifier);
+            .from("liked_tracks")
+            .select("track_id")
+            .eq("user_identifier", userIdentifier);
 
-          if (error) {
-            console.warn(
-              '[SoundWave Likes] Failed to fetch remote likes from Supabase:',
-              error.message
-            );
+          if (error || !data || !Array.isArray(data)) {
             return;
           }
 
-          if (data && Array.isArray(data)) {
-            const remoteTrackIds = data.map(
-              (row: { track_id: string }) => row.track_id
-            );
-            const localTrackIds = get().likedTrackIds;
+          const remoteTrackIds = data.map(
+            (row: { track_id: string }) => row.track_id
+          );
+          const currentTracks = get().likedTracks;
+          const currentIds = get().likedTrackIds;
 
-            // Merge unique IDs
-            const merged = Array.from(
-              new Set([...localTrackIds, ...remoteTrackIds])
-            );
-            set({ likedTrackIds: merged });
+          // Merge IDs
+          const allIds = Array.from(new Set([...currentIds, ...remoteTrackIds]));
+
+          // Build merged tracks array
+          const mergedTracks: Track[] = [...currentTracks];
+          for (const rid of remoteTrackIds) {
+            if (!mergedTracks.some((t) => t.id === rid)) {
+              const mock = MOCK_TRACKS.find((m) => m.id === rid);
+              if (mock) {
+                mergedTracks.push(mock);
+              } else {
+                mergedTracks.push({
+                  id: rid,
+                  title: "Saved Track",
+                  artist: "YouTube Music",
+                  album: "Liked Songs",
+                  duration: 180,
+                  cover_url: `https://i.ytimg.com/vi/${rid}/hqdefault.jpg`,
+                  audio_url: `/api/stream?id=${encodeURIComponent(rid)}`,
+                });
+              }
+            }
           }
+
+          set({
+            likedTracks: mergedTracks,
+            likedTrackIds: allIds,
+          });
         } catch (err) {
-          console.warn('[SoundWave Likes] Error during syncLikes:', err);
+          console.warn("[BeatSync Likes] Error during syncLikes:", err);
         }
       },
     }),
     {
-      name: 'soundwave_likes',
+      name: "beatsync_liked_tracks_v1",
       storage: createJSONStorage(() =>
-        typeof window !== 'undefined'
+        typeof window !== "undefined"
           ? localStorage
           : {
               getItem: () => null,
@@ -145,7 +190,46 @@ export const useLikesStore = create<LikesState>()(
               removeItem: () => {},
             }
       ),
-      partialize: (state) => ({ likedTrackIds: state.likedTrackIds }),
+      partialize: (state) => ({
+        likedTracks: state.likedTracks,
+        likedTrackIds: state.likedTrackIds,
+      }),
+      onRehydrateStorage: () => (state) => {
+        if (!state) return;
+        // Keep likedTrackIds in sync with likedTracks
+        if (state.likedTracks && state.likedTracks.length > 0) {
+          state.likedTrackIds = state.likedTracks.map((t) => t.id);
+        } else if (typeof window !== "undefined") {
+          // Check for legacy migration from soundwave_likes
+          try {
+            const legacyRaw = localStorage.getItem("soundwave_likes");
+            if (legacyRaw) {
+              const parsed = JSON.parse(legacyRaw);
+              const legacyIds: string[] = parsed?.state?.likedTrackIds || [];
+              if (legacyIds.length > 0) {
+                const migratedTracks = legacyIds.map((id) => {
+                  const mock = MOCK_TRACKS.find((t) => t.id === id);
+                  return (
+                    mock || {
+                      id,
+                      title: "Liked Song",
+                      artist: "Artist",
+                      album: "Liked Songs",
+                      duration: 180,
+                      cover_url: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
+                      audio_url: `/api/stream?id=${encodeURIComponent(id)}`,
+                    }
+                  );
+                });
+                state.likedTracks = migratedTracks;
+                state.likedTrackIds = legacyIds;
+              }
+            }
+          } catch {
+            // Ignore migration parse error
+          }
+        }
+      },
     }
   )
 );

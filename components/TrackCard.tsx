@@ -4,6 +4,7 @@ import Image from "next/image";
 import { Play, Pause, Music2 } from "lucide-react";
 import { Track } from "@/types/track";
 import { useAudioStore } from "@/stores/useAudioStore";
+import { LikeButton } from "@/components/LikeButton";
 
 export interface TrackCardProps {
   track: Track;
@@ -75,22 +76,27 @@ export function TrackCard({ track, allTracks = [], onPlay }: TrackCardProps) {
           </button>
         </div>
 
-        {/* Title & Artist */}
-        <div className="mt-3.5">
-          <p
-            className={`text-sm font-bold truncate transition-colors ${
-              isActive ? "text-[#1DB954]" : "text-white group-hover:text-white"
-            }`}
-            title={track.title}
-          >
-            {track.title}
-          </p>
-          <p
-            className="text-xs text-[#B3B3B3] truncate mt-1 hover:underline hover:text-white"
-            title={track.artist}
-          >
-            {track.artist}
-          </p>
+        {/* Title & Artist & Like Button */}
+        <div className="mt-3.5 flex items-start justify-between gap-1.5">
+          <div className="min-w-0 flex-1">
+            <p
+              className={`text-sm font-bold truncate transition-colors ${
+                isActive ? "text-[#1DB954]" : "text-white group-hover:text-white"
+              }`}
+              title={track.title}
+            >
+              {track.title}
+            </p>
+            <p
+              className="text-xs text-[#B3B3B3] truncate mt-1 hover:underline hover:text-white"
+              title={track.artist}
+            >
+              {track.artist}
+            </p>
+          </div>
+          <div className="shrink-0 -mr-1 -mt-0.5">
+            <LikeButton track={track} trackId={track.id} size={15} />
+          </div>
         </div>
       </div>
     </div>

@@ -126,7 +126,7 @@ export function TrackTable({
 
               {/* Like Button & Duration */}
               <div className="col-span-5 sm:col-span-2 flex items-center justify-end gap-3 text-right pr-2">
-                <LikeButton trackId={track.id} size={15} />
+                <LikeButton track={track} trackId={track.id} size={16} />
 
                 <span
                   className={`text-xs font-mono tabular-nums ${
