@@ -66,7 +66,7 @@ export function Sidebar() {
           </Link>
 
           <Link
-            href="/?search=focus"
+            href="/search"
             className={`flex items-center gap-4 text-sm font-bold transition-colors ${
               pathname === "/search"
                 ? "text-white"

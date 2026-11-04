@@ -45,6 +45,22 @@ let retryAttemptedForTrackId: string | null = null;
 let lastNonZeroVolume = 0.8;
 
 /**
+ * Record recently played track in localStorage
+ */
+const recordRecentlyPlayed = (track: Track) => {
+  if (typeof window === 'undefined' || !track || !track.id) return;
+  try {
+    const raw = localStorage.getItem('beatsync_recently_played_v1');
+    const existing: Track[] = raw ? JSON.parse(raw) : [];
+    const filtered = existing.filter((t) => t.id !== track.id);
+    const updated = [track, ...filtered].slice(0, 12);
+    localStorage.setItem('beatsync_recently_played_v1', JSON.stringify(updated));
+  } catch (e) {
+    console.warn('[BeatSync] Failed to save recently played track:', e);
+  }
+};
+
+/**
  * Update native Navigator Media Session metadata
  */
 const updateMediaSession = (track: Track | null) => {
@@ -505,6 +521,7 @@ export const useAudioStore = create<AudioState>((set, get) => {
       // Update native Navigator Media Session metadata & register action handlers
       updateMediaSession(track);
       registerMediaSessionHandlers(get);
+      recordRecentlyPlayed(track);
 
       if (audio) {
         // SYNCHRONOUS playback start to preserve browser user activation
@@ -556,6 +573,7 @@ export const useAudioStore = create<AudioState>((set, get) => {
       // Update native Navigator Media Session metadata & register action handlers
       updateMediaSession(targetTrack);
       registerMediaSessionHandlers(get);
+      recordRecentlyPlayed(targetTrack);
 
       const audio = getAudioElement();
       if (audio) {
