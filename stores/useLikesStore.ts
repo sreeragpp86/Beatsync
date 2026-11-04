@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import { Track } from "@/types/track";
 import { MOCK_TRACKS } from "@/lib/mock-tracks";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { toast } from "sonner";
 
 const CLIENT_ID_STORAGE_KEY = "beatsync_client_uuid";
 
@@ -42,8 +43,11 @@ export const useLikesStore = create<LikesState>()(
 
       isLiked: (trackId: string) => {
         if (!trackId) return false;
-        const { likedTrackIds } = get();
-        return likedTrackIds.includes(trackId);
+        const { likedTrackIds, likedTracks } = get();
+        return (
+          likedTrackIds.includes(trackId) ||
+          likedTracks.some((t) => t.id === trackId)
+        );
       },
 
       getLikedTracks: () => {
@@ -94,6 +98,13 @@ export const useLikesStore = create<LikesState>()(
           likedTracks: nextLikedTracks,
           likedTrackIds: nextLikedTrackIds,
         });
+
+        // Notifications
+        if (isCurrentlyLiked) {
+          toast.info("Removed from Liked Songs");
+        } else {
+          toast.success("Added to Liked Songs");
+        }
 
         // Background sync to Supabase if configured
         if (!isSupabaseConfigured || typeof window === "undefined") {
@@ -180,7 +191,7 @@ export const useLikesStore = create<LikesState>()(
       },
     }),
     {
-      name: "beatsync_liked_tracks_v1",
+      name: "beatsync_liked_v1",
       storage: createJSONStorage(() =>
         typeof window !== "undefined"
           ? localStorage
@@ -200,14 +211,23 @@ export const useLikesStore = create<LikesState>()(
         if (state.likedTracks && state.likedTracks.length > 0) {
           state.likedTrackIds = state.likedTracks.map((t) => t.id);
         } else if (typeof window !== "undefined") {
-          // Check for legacy migration from soundwave_likes
+          // Check for migration from previous storage keys
           try {
-            const legacyRaw = localStorage.getItem("soundwave_likes");
-            if (legacyRaw) {
-              const parsed = JSON.parse(legacyRaw);
-              const legacyIds: string[] = parsed?.state?.likedTrackIds || [];
-              if (legacyIds.length > 0) {
-                const migratedTracks = legacyIds.map((id) => {
+            const prevStorage =
+              localStorage.getItem("beatsync_liked_tracks_v1") ||
+              localStorage.getItem("soundwave_likes");
+            if (prevStorage) {
+              const parsed = JSON.parse(prevStorage);
+              const prevTracks: Track[] =
+                parsed?.state?.likedTracks || [];
+              const prevIds: string[] =
+                parsed?.state?.likedTrackIds || [];
+
+              if (prevTracks.length > 0) {
+                state.likedTracks = prevTracks;
+                state.likedTrackIds = prevTracks.map((t) => t.id);
+              } else if (prevIds.length > 0) {
+                const migratedTracks = prevIds.map((id) => {
                   const mock = MOCK_TRACKS.find((t) => t.id === id);
                   return (
                     mock || {
@@ -222,7 +242,7 @@ export const useLikesStore = create<LikesState>()(
                   );
                 });
                 state.likedTracks = migratedTracks;
-                state.likedTrackIds = legacyIds;
+                state.likedTrackIds = prevIds;
               }
             }
           } catch {

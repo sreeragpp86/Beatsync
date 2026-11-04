@@ -10,6 +10,7 @@ import {
   ChevronRight,
   Compass,
   Loader2,
+  Sparkles,
 } from "lucide-react";
 import { useAudioStore } from "@/stores/useAudioStore";
 import { useLikesStore } from "@/stores/useLikesStore";
@@ -27,7 +28,7 @@ function formatTotalDuration(seconds: number): string {
   return `${minutes} min ${remainingSecs} sec`;
 }
 
-export default function LikedSongsPage() {
+export function LikedSongsContent() {
   const [mounted, setMounted] = useState(false);
   const { currentTrack, isPlaying, setQueue, togglePlay } = useAudioStore();
   const { likedTracks, syncLikes } = useLikesStore();
@@ -59,7 +60,7 @@ export default function LikedSongsPage() {
 
   return (
     <div className="flex flex-col min-h-full select-none">
-      {/* Sticky Top Bar with Back/Forward & Explore Navigation */}
+      {/* Sticky Top Bar with Back/Forward & Discover Navigation */}
       <header className="sticky top-0 z-30 flex items-center justify-between px-6 py-4 bg-[#121212]/80 backdrop-blur-md border-b border-white/10">
         <div className="flex items-center gap-2">
           <button
@@ -82,17 +83,17 @@ export default function LikedSongsPage() {
           href="/"
           className="text-xs font-bold text-[#B3B3B3] hover:text-white transition-colors flex items-center gap-1.5"
         >
-          <Compass className="h-4 w-4" />
-          <span>Explore All Songs</span>
+          <Compass className="h-4 w-4 text-[#1DB954]" />
+          <span>Discover Music</span>
         </Link>
       </header>
 
-      {/* Spotify Liked Songs Hero Header */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-[#5038a0]/90 via-[#201844]/75 to-transparent px-6 pt-10 pb-8 border-b border-white/5">
+      {/* Spotify Liked Songs Hero Header with Violet-to-Black Gradient */}
+      <section className="relative overflow-hidden bg-gradient-to-b from-[#4c1d95]/90 via-[#1e1035]/80 to-transparent px-6 pt-10 pb-8 border-b border-white/5">
         <div className="relative z-10 flex flex-col sm:flex-row items-center sm:items-end gap-6 sm:gap-8">
-          {/* Big Gradient Heart Box with Glass Reflection */}
-          <div className="relative group flex h-48 w-48 sm:h-56 sm:w-56 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#450af5] via-[#8e24aa] to-[#e91e63] text-white shadow-2xl border border-white/20">
-            <Heart className="h-24 w-24 fill-white drop-shadow-2xl transition-transform duration-300 group-hover:scale-110" />
+          {/* Large Heart Badge */}
+          <div className="relative group flex h-44 w-44 sm:h-52 sm:w-52 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#4c1d95] via-[#7c3aed] to-[#ec4899] text-white shadow-2xl border border-white/20">
+            <Heart className="h-24 w-24 fill-white text-white drop-shadow-2xl transition-transform duration-300 group-hover:scale-110" />
             <div className="absolute inset-0 rounded-2xl bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
           </div>
 
@@ -110,7 +111,9 @@ export default function LikedSongsPage() {
               </span>
               <span>•</span>
               <span className="font-medium text-white">
-                {!mounted ? "Loading..." : `${tracks.length} ${tracks.length === 1 ? "song" : "songs"}`}
+                {!mounted
+                  ? "Loading..."
+                  : `${tracks.length} ${tracks.length === 1 ? "song" : "songs"}`}
               </span>
               {mounted && tracks.length > 0 && (
                 <>
@@ -125,12 +128,21 @@ export default function LikedSongsPage() {
 
       {/* Content Area */}
       <div className="px-6 py-6 space-y-6 flex-1">
-        {/* Play Action Bar */}
+        {/* Play Action Bar (Circular Emerald "Play All" Button) */}
         {mounted && tracks.length > 0 && (
           <div className="flex items-center gap-6">
             <button
               onClick={handlePlayAll}
-              aria-label={isCurrentTrackInLiked && isPlaying ? "Pause liked songs" : "Play all liked songs"}
+              aria-label={
+                isCurrentTrackInLiked && isPlaying
+                  ? "Pause liked songs"
+                  : "Play all liked songs"
+              }
+              title={
+                isCurrentTrackInLiked && isPlaying
+                  ? "Pause liked songs"
+                  : "Play all liked songs"
+              }
               className="flex h-14 w-14 items-center justify-center rounded-full bg-[#1DB954] text-black shadow-xl hover:scale-105 active:scale-95 transition-all cursor-pointer hover:bg-[#1ed760]"
             >
               {isCurrentTrackInLiked && isPlaying ? (
@@ -155,17 +167,17 @@ export default function LikedSongsPage() {
               <Heart className="h-10 w-10 text-[#B3B3B3]" />
             </div>
             <h3 className="text-2xl font-bold text-white">
-              Songs you like will appear here
+              No liked tracks yet
             </h3>
             <p className="text-sm text-[#B3B3B3] mt-2 max-w-sm">
-              Save songs by clicking the heart icon on any track card, row, or in the player bar.
+              Save tracks to your library by tapping the heart icon on any song card, row, or in the player dock.
             </p>
             <Link
               href="/"
               className="mt-6 inline-flex items-center gap-2 rounded-full bg-white px-7 py-3 text-sm font-bold text-black hover:scale-105 active:scale-95 transition-all cursor-pointer shadow-lg hover:bg-neutral-100"
             >
               <Compass className="h-4 w-4" />
-              <span>Explore music</span>
+              <span>Discover</span>
             </Link>
           </div>
         ) : (
@@ -178,4 +190,8 @@ export default function LikedSongsPage() {
       </div>
     </div>
   );
+}
+
+export default function LikedSongsPage() {
+  return <LikedSongsContent />;
 }
