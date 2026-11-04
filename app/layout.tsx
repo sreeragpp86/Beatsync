@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Sidebar } from "@/components/Sidebar";
 import { PlayerBar } from "@/components/PlayerBar";
+import { Toaster } from "sonner";
+import { Analytics } from "@vercel/analytics/react";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -63,6 +65,10 @@ export default function RootLayout({
           {/* Persistent Fixed Bottom Player Dock (88px) */}
           <PlayerBar />
         </div>
+
+        {/* Sonner Toast Notification Center & Vercel Telemetry */}
+        <Toaster theme="dark" richColors position="bottom-right" />
+        <Analytics />
       </body>
     </html>
   );

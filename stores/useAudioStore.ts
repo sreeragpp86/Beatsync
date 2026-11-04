@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { Track } from '@/types/track';
+import { toast } from 'sonner';
 
 export interface AudioState {
   // State
@@ -105,6 +106,7 @@ const scheduleSkipNext = (
 
   consecutiveErrors++;
   if (consecutiveErrors >= 3) {
+    toast.error('Playback stopped after multiple stream errors. Please select another track.', { id: 'stream-status' });
     set({
       isPlaying: false,
       isLoadingStream: false,
@@ -192,6 +194,7 @@ export const useAudioStore = create<AudioState>((set, get) => {
           );
 
           // Display unobtrusive toast notification: "Re-routing stream..."
+          toast.loading('Re-routing stream...', { id: 'stream-status' });
           set({
             isPlaying: false,
             isLoadingStream: true,
@@ -220,6 +223,7 @@ export const useAudioStore = create<AudioState>((set, get) => {
               retryPromise
                 .then(() => {
                   consecutiveErrors = 0;
+                  toast.success('Stream recovered', { id: 'stream-status' });
                   set({
                     isPlaying: true,
                     isLoadingStream: false,
@@ -234,6 +238,7 @@ export const useAudioStore = create<AudioState>((set, get) => {
                   if (retryErr.name !== 'AbortError' && retryErr.name !== 'NotAllowedError') {
                     console.warn('[BeatSync Audio] Recovery retry failed:', retryErr);
                   }
+                  toast.error('Unable to stream this track. Skipping...', { id: 'stream-status' });
                   set({
                     isPlaying: false,
                     isLoadingStream: false,
@@ -248,6 +253,7 @@ export const useAudioStore = create<AudioState>((set, get) => {
           console.error(
             `[BeatSync Audio] Stream recovery failed for "${currentTrack.title}". Skipping to next song.`
           );
+          toast.error('Unable to stream this track. Skipping...', { id: 'stream-status' });
           set({
             isPlaying: false,
             isLoadingStream: false,

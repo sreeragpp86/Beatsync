@@ -22,6 +22,7 @@ import { useAudioStore } from "@/stores/useAudioStore";
 import { useLikesStore } from "@/stores/useLikesStore";
 import { TrackCard } from "@/components/TrackCard";
 import { LikeButton } from "@/components/LikeButton";
+import { toast } from "sonner";
 
 function formatTime(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
@@ -68,6 +69,8 @@ function HomeContent() {
       })
       .finally(() => {
         setIsLoading(false);
+        // Test toast notification confirming streaming readiness
+        toast.success("Ready to stream");
       });
   }, [syncLikes]);
 

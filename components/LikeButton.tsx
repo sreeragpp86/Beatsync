@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Heart } from "lucide-react";
 import { Track } from "@/types/track";
 import { useLikesStore } from "@/stores/useLikesStore";
+import { toast } from "sonner";
 
 export interface LikeButtonProps {
   track?: Track;
@@ -45,6 +46,12 @@ export function LikeButton({
       toggleLike(track);
     } else {
       toggleLike(effectiveId);
+    }
+
+    if (liked) {
+      toast("Removed from your Liked Songs", { duration: 1800 });
+    } else {
+      toast.success("Saved to your Liked Songs", { duration: 1800 });
     }
   };
 
