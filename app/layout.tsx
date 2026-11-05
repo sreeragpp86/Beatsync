@@ -6,6 +6,7 @@ import { PlayerBar } from "@/components/PlayerBar";
 import { MobileNav } from "@/components/MobileNav";
 import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
 import { YouTubePlayer } from "@/components/YouTubePlayer";
+import { NowPlayingModal } from "@/components/NowPlayingModal";
 import { Toaster } from "sonner";
 import { Analytics } from "@vercel/analytics/react";
 
@@ -113,6 +114,9 @@ export default function RootLayout({
 
           {/* Persistent Player Dock (Mini Player on mobile, Full Dock on desktop) */}
           <PlayerBar />
+
+          {/* Fullscreen Expandable Now Playing Modal */}
+          <NowPlayingModal />
 
           {/* Persistent Bottom Navigation for Mobile Devices */}
           <MobileNav />

@@ -15,10 +15,18 @@ export interface AudioState {
   queue: Track[];
   queueIndex: number;
   isQueueOpen: boolean;
+  isNowPlayingOpen: boolean;
+  isShuffle: boolean;
+  repeatMode: "off" | "all" | "one";
   toastMessage: string | null;
 
   // Actions
   setToastMessage: (msg: string | null) => void;
+  openNowPlaying: () => void;
+  closeNowPlaying: () => void;
+  toggleNowPlaying: () => void;
+  toggleShuffle: () => void;
+  toggleRepeat: () => void;
   setQueue: (tracks: Track[], startIndex?: number) => void;
   playTrack: (track: Track) => Promise<void>;
   playQueueIndex: (index: number) => Promise<void>;
@@ -449,9 +457,35 @@ export const useAudioStore = create<AudioState>((set, get) => {
     queue: [],
     queueIndex: -1,
     isQueueOpen: false,
+    isNowPlayingOpen: false,
+    isShuffle: false,
+    repeatMode: 'off',
     toastMessage: null,
 
     setToastMessage: (msg: string | null) => set({ toastMessage: msg }),
+    openNowPlaying: () => set({ isNowPlayingOpen: true }),
+    closeNowPlaying: () => set({ isNowPlayingOpen: false }),
+    toggleNowPlaying: () => set((state) => ({ isNowPlayingOpen: !state.isNowPlayingOpen })),
+
+    toggleShuffle: () => {
+      const next = !get().isShuffle;
+      set({ isShuffle: next });
+      toast.info(next ? 'Shuffle enabled' : 'Shuffle disabled', {
+        id: 'shuffle-status',
+        duration: 1500,
+      });
+    },
+
+    toggleRepeat: () => {
+      const modes: Array<'off' | 'all' | 'one'> = ['off', 'all', 'one'];
+      const current = get().repeatMode;
+      const nextIdx = (modes.indexOf(current) + 1) % modes.length;
+      const next = modes[nextIdx];
+      set({ repeatMode: next });
+      const labels = { off: 'Repeat off', all: 'Repeat all', one: 'Repeat track' };
+      toast.info(labels[next], { id: 'repeat-status', duration: 1500 });
+    },
+
     toggleQueue: () => set((state) => ({ isQueueOpen: !state.isQueueOpen })),
     setIsQueueOpen: (open: boolean) => set({ isQueueOpen: open }),
 
@@ -822,8 +856,35 @@ export const useAudioStore = create<AudioState>((set, get) => {
     },
 
     playNext: () => {
-      const { queue, queueIndex, currentTrack } = get();
+      const { queue, queueIndex, currentTrack, isShuffle, repeatMode } = get();
       if (!queue || queue.length === 0) return;
+
+      // Repeat One: restart current track
+      if (repeatMode === 'one' && currentTrack) {
+        get().seek(0);
+        if (ytPlayerService.isYouTubeTrack(currentTrack)) {
+          ytPlayerService.play();
+        } else {
+          const audio = getAudioElement();
+          if (audio) {
+            audio.currentTime = 0;
+            audio.play().catch(() => {});
+          }
+        }
+        set({ isPlaying: true });
+        return;
+      }
+
+      // Shuffle: select random track from queue (other than current)
+      if (isShuffle && queue.length > 1) {
+        const remainingIndices = queue
+          .map((_, i) => i)
+          .filter((i) => i !== queueIndex);
+        const randomIdx =
+          remainingIndices[Math.floor(Math.random() * remainingIndices.length)];
+        get().playQueueIndex(randomIdx);
+        return;
+      }
 
       const nextIndex = queueIndex + 1;
 

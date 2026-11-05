@@ -13,6 +13,8 @@ import {
   Music2,
   ListMusic,
   Loader2,
+  Maximize2,
+  ChevronUp,
 } from "lucide-react";
 import { useAudioStore } from "@/stores/useAudioStore";
 import { QueueDrawer } from "@/components/QueueDrawer";
@@ -42,6 +44,7 @@ export function PlayerBar() {
     playPrevious,
     toggleQueue,
     isQueueOpen,
+    openNowPlaying,
   } = useAudioStore();
 
   const [isDragging, setIsDragging] = useState(false);
@@ -139,8 +142,9 @@ export function PlayerBar() {
           <div className="flex items-center justify-between p-2 gap-2.5">
             {/* Artwork + Title & Artist */}
             <div
-              onClick={toggleQueue}
+              onClick={openNowPlaying}
               className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer"
+              title="Expand Now Playing"
             >
               <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-[#242424] shadow-sm">
                 {currentTrack.cover_url ? (
@@ -168,8 +172,8 @@ export function PlayerBar() {
               </div>
             </div>
 
-            {/* Mobile Controls: Like, Play/Pause, Next Track, Queue */}
-            <div className="flex items-center gap-2 shrink-0">
+            {/* Mobile Controls: Like, Play/Pause, Next Track, Queue, Expand */}
+            <div className="flex items-center gap-1.5 shrink-0">
               <LikeButton track={currentTrack} trackId={currentTrack.id} size={18} />
 
               <button
@@ -196,13 +200,12 @@ export function PlayerBar() {
               </button>
 
               <button
-                onClick={toggleQueue}
-                aria-label={isQueueOpen ? "Close queue" : "Open queue"}
-                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                  isQueueOpen ? "text-[#1DB954] bg-[#1DB954]/15" : "text-[#B3B3B3] hover:text-white"
-                }`}
+                onClick={openNowPlaying}
+                aria-label="Expand Now Playing"
+                className="p-1.5 text-[#B3B3B3] hover:text-white transition-colors cursor-pointer"
+                title="Expand Now Playing"
               >
-                <ListMusic className="h-4 w-4" />
+                <ChevronUp className="h-4 w-4" />
               </button>
             </div>
           </div>
@@ -226,29 +229,40 @@ export function PlayerBar() {
       >
         {/* Left Section: Current Track Artwork & Metadata */}
         <div className="flex items-center gap-3.5 w-1/4 min-w-[160px] max-w-[280px]">
-          <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-md bg-[#282828] shadow-md">
+          <div
+            onClick={openNowPlaying}
+            className="group/art relative h-14 w-14 shrink-0 overflow-hidden rounded-md bg-[#282828] shadow-md cursor-pointer"
+            title="Expand Now Playing"
+          >
             {currentTrack?.cover_url ? (
               <Image
                 src={currentTrack.cover_url}
                 alt={currentTrack.title || "Track artwork"}
                 fill
                 sizes="56px"
-                className="object-cover"
+                className="object-cover group-hover/art:scale-105 transition-transform duration-300"
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center text-[#B3B3B3]">
                 <Music2 className="h-6 w-6" />
               </div>
             )}
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/art:opacity-100 transition-opacity flex items-center justify-center">
+              <ChevronUp className="h-5 w-5 text-white" />
+            </div>
           </div>
 
-          <div className="min-w-0 flex-1">
+          <div
+            onClick={openNowPlaying}
+            className="min-w-0 flex-1 cursor-pointer"
+            title="Expand Now Playing"
+          >
             {currentTrack ? (
               <>
-                <p className="text-sm font-semibold text-white truncate hover:underline cursor-pointer">
+                <p className="text-sm font-semibold text-white truncate hover:underline">
                   {currentTrack.title}
                 </p>
-                <p className="text-xs text-[#B3B3B3] truncate hover:underline hover:text-white cursor-pointer mt-0.5">
+                <p className="text-xs text-[#B3B3B3] truncate hover:underline hover:text-white mt-0.5">
                   {currentTrack.artist}
                   {currentTrack.album ? ` • ${currentTrack.album}` : ""}
                 </p>
@@ -266,7 +280,7 @@ export function PlayerBar() {
           </div>
 
           {currentTrack && (
-            <div className="shrink-0">
+            <div className="shrink-0 flex items-center gap-1">
               <LikeButton track={currentTrack} trackId={currentTrack.id} size={18} />
             </div>
           )}
@@ -362,6 +376,17 @@ export function PlayerBar() {
             title="Queue"
           >
             <ListMusic className="h-4 w-4" />
+          </button>
+
+          {/* Expand Fullscreen Now Playing Overlay */}
+          <button
+            onClick={openNowPlaying}
+            disabled={!currentTrack}
+            aria-label="Expand Now Playing"
+            className="rounded-lg p-1.5 text-[#B3B3B3] hover:text-white hover:bg-white/5 transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+            title="Expand Now Playing"
+          >
+            <Maximize2 className="h-4 w-4" />
           </button>
 
           <button
