@@ -35,6 +35,7 @@ export interface AudioState {
   toggleMute: () => void;
   playNext: () => void;
   playPrevious: () => void;
+  restartAudio: () => void;
 }
 
 // Client-safe Audio singleton initialization
@@ -214,191 +215,198 @@ const scheduleSkipNext = (
   }
 };
 
+const setupAudioListeners = (
+  audio: HTMLAudioElement,
+  set: (state: Partial<AudioState> | ((state: AudioState) => Partial<AudioState>)) => void,
+  get: () => AudioState
+) => {
+  registerMediaSessionHandlers(get);
+
+  audio.addEventListener('timeupdate', () => {
+    set({ currentTime: audio.currentTime });
+
+    if (
+      typeof window !== 'undefined' &&
+      'mediaSession' in navigator &&
+      'setPositionState' in navigator.mediaSession
+    ) {
+      try {
+        const d = audio.duration;
+        if (Number.isFinite(d) && d > 0) {
+          navigator.mediaSession.setPositionState({
+            duration: d,
+            playbackRate: audio.playbackRate || 1,
+            position: Math.min(audio.currentTime, d),
+          });
+        }
+      } catch {}
+    }
+  });
+
+  audio.addEventListener('loadedmetadata', () => {
+    const audioDuration = Number.isFinite(audio.duration) ? audio.duration : 0;
+    set({
+      duration: audioDuration || get().currentTrack?.duration || 0,
+    });
+  });
+
+  audio.addEventListener('durationchange', () => {
+    if (Number.isFinite(audio.duration) && audio.duration > 0) {
+      set({ duration: audio.duration });
+    }
+  });
+
+  // Auto-advance to next track when playback ends
+  audio.addEventListener('ended', () => {
+    if (audio.currentTime > 1) {
+      get().playNext();
+    }
+  });
+
+  audio.addEventListener('playing', () => {
+    consecutiveErrors = 0;
+    retryAttemptedForTrackId = null;
+    if (skipTimer) {
+      clearTimeout(skipTimer);
+      skipTimer = null;
+    }
+    set({ isPlaying: true, isLoadingStream: false });
+    if (typeof window !== 'undefined' && 'mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = 'playing';
+    }
+    if (
+      get().toastMessage === 'Re-routing stream...' ||
+      get().toastMessage === 'Stream failed. Auto-retrying...'
+    ) {
+      set({ toastMessage: null });
+    }
+  });
+
+  audio.addEventListener('play', () => {
+    set({ isPlaying: true });
+    if (typeof window !== 'undefined' && 'mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = 'playing';
+    }
+  });
+
+  audio.addEventListener('pause', () => {
+    set({ isPlaying: false });
+    if (typeof window !== 'undefined' && 'mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = 'paused';
+    }
+  });
+
+  // Audio error recovery & streaming fallback
+  const handleAudioError = async (e: Event | string) => {
+    console.error('[BeatSync Audio] Error playing audio:', e);
+    const { currentTrack, queue } = get();
+
+    if (!currentTrack) {
+      set({ isPlaying: false, isLoadingStream: false });
+      return;
+    }
+
+    // On error, toast with sonner: toast.error("Stream failed. Auto-retrying...")
+    toast.error("Stream failed. Auto-retrying...", { id: 'stream-status' });
+
+    // Check if an automatic retry has already been attempted for this track
+    const canRetry = retryAttemptedForTrackId !== currentTrack.id;
+
+    if (canRetry) {
+      retryAttemptedForTrackId = currentTrack.id;
+      console.warn(
+        `[BeatSync Audio] Stream playback error on "${currentTrack.title}". Attempting force-cache refresh retry...`
+      );
+
+      set({
+        isPlaying: false,
+        isLoadingStream: true,
+        toastMessage: 'Stream failed. Auto-retrying...',
+      });
+
+      try {
+        const currentAudio = getAudioElement();
+        if (!currentAudio || get().currentTrack?.id !== currentTrack.id) return;
+
+        const preservedTime = currentAudio.currentTime || get().currentTime || 0;
+
+        // Attempt one re-fetch with force-cache refresh
+        const freshRes = await fetch(
+          `/api/stream?id=${encodeURIComponent(currentTrack.id)}&json=true&retry=1&refresh=true&t=${Date.now()}`,
+          {
+            cache: 'no-store',
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              Pragma: 'no-cache',
+            },
+          }
+        );
+
+        let freshStreamUrl = `/api/stream?id=${encodeURIComponent(currentTrack.id)}&retry=1&t=${Date.now()}`;
+        if (freshRes.ok) {
+          const data = await freshRes.json();
+          if (data && data.streamUrl) {
+            freshStreamUrl = data.streamUrl;
+          }
+        }
+
+        currentAudio.src = freshStreamUrl;
+        if (preservedTime > 0) {
+          try {
+            currentAudio.currentTime = preservedTime;
+          } catch {}
+        }
+        currentAudio.load();
+
+        const retryPromise = currentAudio.play();
+        if (retryPromise !== undefined) {
+          await retryPromise;
+          consecutiveErrors = 0;
+          toast.success('Stream recovered', { id: 'stream-status' });
+          set({
+            isPlaying: true,
+            isLoadingStream: false,
+            toastMessage: null,
+          });
+        }
+      } catch (retryErr: any) {
+        if (retryErr?.name !== 'AbortError' && retryErr?.name !== 'NotAllowedError') {
+          console.warn('[BeatSync Audio] Recovery retry failed:', retryErr);
+        }
+        toast.error('Unable to stream this track. Skipping...', { id: 'stream-status' });
+        set({
+          isPlaying: false,
+          isLoadingStream: false,
+          toastMessage: 'Unable to stream this track. Skipping...',
+        });
+        scheduleSkipNext(() => get().playNext(), set, queue.length);
+      }
+    } else {
+      // Retry was already attempted for this track and failed again
+      console.error(
+        `[BeatSync Audio] Stream recovery failed for "${currentTrack.title}". Skipping to next song.`
+      );
+      toast.error('Unable to stream this track. Skipping...', { id: 'stream-status' });
+      set({
+        isPlaying: false,
+        isLoadingStream: false,
+        toastMessage: 'Unable to stream this track. Skipping...',
+      });
+      scheduleSkipNext(() => get().playNext(), set, queue.length);
+    }
+  };
+
+  // Bind audio.onerror and addEventListener
+  audio.onerror = handleAudioError;
+  audio.addEventListener('error', handleAudioError);
+};
+
 export const useAudioStore = create<AudioState>((set, get) => {
   // Initialize listeners on client side
   if (typeof window !== 'undefined') {
     const audio = getAudioElement();
-
     if (audio) {
-      registerMediaSessionHandlers(get);
-
-      audio.addEventListener('timeupdate', () => {
-        set({ currentTime: audio.currentTime });
-
-        if (
-          typeof window !== 'undefined' &&
-          'mediaSession' in navigator &&
-          'setPositionState' in navigator.mediaSession
-        ) {
-          try {
-            const d = audio.duration;
-            if (Number.isFinite(d) && d > 0) {
-              navigator.mediaSession.setPositionState({
-                duration: d,
-                playbackRate: audio.playbackRate || 1,
-                position: Math.min(audio.currentTime, d),
-              });
-            }
-          } catch {}
-        }
-      });
-
-      audio.addEventListener('loadedmetadata', () => {
-        const audioDuration = Number.isFinite(audio.duration) ? audio.duration : 0;
-        set({
-          duration: audioDuration || get().currentTrack?.duration || 0,
-        });
-      });
-
-      audio.addEventListener('durationchange', () => {
-        if (Number.isFinite(audio.duration) && audio.duration > 0) {
-          set({ duration: audio.duration });
-        }
-      });
-
-      // Auto-advance to next track when playback ends
-      audio.addEventListener('ended', () => {
-        if (audio.currentTime > 1) {
-          get().playNext();
-        }
-      });
-
-      audio.addEventListener('playing', () => {
-        consecutiveErrors = 0;
-        retryAttemptedForTrackId = null;
-        if (skipTimer) {
-          clearTimeout(skipTimer);
-          skipTimer = null;
-        }
-        set({ isPlaying: true, isLoadingStream: false });
-        if (typeof window !== 'undefined' && 'mediaSession' in navigator) {
-          navigator.mediaSession.playbackState = 'playing';
-        }
-        if (
-          get().toastMessage === 'Re-routing stream...' ||
-          get().toastMessage === 'Stream failed. Auto-retrying...'
-        ) {
-          set({ toastMessage: null });
-        }
-      });
-
-      audio.addEventListener('play', () => {
-        set({ isPlaying: true });
-        if (typeof window !== 'undefined' && 'mediaSession' in navigator) {
-          navigator.mediaSession.playbackState = 'playing';
-        }
-      });
-
-      audio.addEventListener('pause', () => {
-        set({ isPlaying: false });
-        if (typeof window !== 'undefined' && 'mediaSession' in navigator) {
-          navigator.mediaSession.playbackState = 'paused';
-        }
-      });
-
-      // Audio error recovery & streaming fallback
-      const handleAudioError = async (e: Event | string) => {
-        console.error('[BeatSync Audio] Error playing audio:', e);
-        const { currentTrack, queue } = get();
-
-        if (!currentTrack) {
-          set({ isPlaying: false, isLoadingStream: false });
-          return;
-        }
-
-        // On error, toast with sonner: toast.error("Stream failed. Auto-retrying...")
-        toast.error("Stream failed. Auto-retrying...", { id: 'stream-status' });
-
-        // Check if an automatic retry has already been attempted for this track
-        const canRetry = retryAttemptedForTrackId !== currentTrack.id;
-
-        if (canRetry) {
-          retryAttemptedForTrackId = currentTrack.id;
-          console.warn(
-            `[BeatSync Audio] Stream playback error on "${currentTrack.title}". Attempting force-cache refresh retry...`
-          );
-
-          set({
-            isPlaying: false,
-            isLoadingStream: true,
-            toastMessage: 'Stream failed. Auto-retrying...',
-          });
-
-          try {
-            const currentAudio = getAudioElement();
-            if (!currentAudio || get().currentTrack?.id !== currentTrack.id) return;
-
-            const preservedTime = currentAudio.currentTime || get().currentTime || 0;
-
-            // Attempt one re-fetch with force-cache refresh
-            const freshRes = await fetch(
-              `/api/stream?id=${encodeURIComponent(currentTrack.id)}&json=true&retry=1&refresh=true&t=${Date.now()}`,
-              {
-                cache: 'no-store',
-                headers: {
-                  'Cache-Control': 'no-cache, no-store, must-revalidate',
-                  Pragma: 'no-cache',
-                },
-              }
-            );
-
-            let freshStreamUrl = `/api/stream?id=${encodeURIComponent(currentTrack.id)}&retry=1&t=${Date.now()}`;
-            if (freshRes.ok) {
-              const data = await freshRes.json();
-              if (data && data.streamUrl) {
-                freshStreamUrl = data.streamUrl;
-              }
-            }
-
-            currentAudio.src = freshStreamUrl;
-            if (preservedTime > 0) {
-              try {
-                currentAudio.currentTime = preservedTime;
-              } catch {}
-            }
-            currentAudio.load();
-
-            const retryPromise = currentAudio.play();
-            if (retryPromise !== undefined) {
-              await retryPromise;
-              consecutiveErrors = 0;
-              toast.success('Stream recovered', { id: 'stream-status' });
-              set({
-                isPlaying: true,
-                isLoadingStream: false,
-                toastMessage: null,
-              });
-            }
-          } catch (retryErr: any) {
-            if (retryErr?.name !== 'AbortError' && retryErr?.name !== 'NotAllowedError') {
-              console.warn('[BeatSync Audio] Recovery retry failed:', retryErr);
-            }
-            toast.error('Unable to stream this track. Skipping...', { id: 'stream-status' });
-            set({
-              isPlaying: false,
-              isLoadingStream: false,
-              toastMessage: 'Unable to stream this track. Skipping...',
-            });
-            scheduleSkipNext(() => get().playNext(), set, queue.length);
-          }
-        } else {
-          // Retry was already attempted for this track and failed again
-          console.error(
-            `[BeatSync Audio] Stream recovery failed for "${currentTrack.title}". Skipping to next song.`
-          );
-          toast.error('Unable to stream this track. Skipping...', { id: 'stream-status' });
-          set({
-            isPlaying: false,
-            isLoadingStream: false,
-            toastMessage: 'Unable to stream this track. Skipping...',
-          });
-          scheduleSkipNext(() => get().playNext(), set, queue.length);
-        }
-      };
-
-      // Bind audio.onerror and addEventListener
-      audio.onerror = handleAudioError;
-      audio.addEventListener('error', handleAudioError);
+      setupAudioListeners(audio, set, get);
     }
   }
 
@@ -896,8 +904,53 @@ export const useAudioStore = create<AudioState>((set, get) => {
       const prevIndex = (queueIndex - 1 + queue.length) % queue.length;
       get().playQueueIndex(prevIndex);
     },
+
+    restartAudio: () => {
+      if (typeof window === 'undefined') return;
+
+      if (skipTimer) {
+        clearTimeout(skipTimer);
+        skipTimer = null;
+      }
+      consecutiveErrors = 0;
+      retryAttemptedForTrackId = null;
+
+      if (audioInstance) {
+        try {
+          audioInstance.pause();
+          audioInstance.removeAttribute('src');
+          audioInstance.load();
+        } catch (e) {
+          console.warn('[BeatSync Audio] Error tearing down audio instance:', e);
+        }
+      }
+
+      audioInstance = new Audio();
+      audioInstance.preload = 'metadata';
+      audioInstance.volume = get().volume || 0.8;
+      (window as any).__audioInstance = audioInstance;
+
+      setupAudioListeners(audioInstance, set, get);
+
+      set({
+        isPlaying: false,
+        isLoadingStream: false,
+        currentTime: 0,
+        toastMessage: null,
+      });
+
+      toast.success('Audio player reloaded', { id: 'player-reload' });
+    },
   };
 });
+
+/**
+ * Global helper to restart the audio singleton
+ */
+export const reloadAudioSingleton = () => {
+  if (typeof window === 'undefined') return;
+  useAudioStore.getState().restartAudio();
+};
 
 if (typeof window !== 'undefined') {
   (window as any).__useAudioStore = useAudioStore;
