@@ -5,6 +5,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { PlayerBar } from "@/components/PlayerBar";
 import { MobileNav } from "@/components/MobileNav";
 import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
+import { YouTubePlayer } from "@/components/YouTubePlayer";
 import { Toaster } from "sonner";
 import { Analytics } from "@vercel/analytics/react";
 
@@ -116,6 +117,9 @@ export default function RootLayout({
           {/* Persistent Bottom Navigation for Mobile Devices */}
           <MobileNav />
         </div>
+
+        {/* Client-Side Invisible YouTube Player Bridge for Real Audio Streaming */}
+        <YouTubePlayer />
 
         {/* Global Keyboard Shortcuts (Space, Arrows, Mute) */}
         <KeyboardShortcuts />

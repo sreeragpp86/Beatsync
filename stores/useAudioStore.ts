@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { Track } from '@/types/track';
 import { toast } from 'sonner';
+import { ytPlayerService } from '@/lib/youtube-player';
 
 export interface AudioState {
   // State
@@ -185,6 +186,7 @@ const setupAudioListeners = (
   registerMediaSessionHandlers(get);
 
   audio.addEventListener('timeupdate', () => {
+    if (ytPlayerService.isYouTubeTrack(get().currentTrack)) return;
     set({ currentTime: audio.currentTime });
 
     if (
@@ -206,6 +208,7 @@ const setupAudioListeners = (
   });
 
   audio.addEventListener('loadedmetadata', () => {
+    if (ytPlayerService.isYouTubeTrack(get().currentTrack)) return;
     const audioDuration = Number.isFinite(audio.duration) ? audio.duration : 0;
     set({
       duration: audioDuration || get().currentTrack?.duration || 0,
@@ -213,6 +216,7 @@ const setupAudioListeners = (
   });
 
   audio.addEventListener('durationchange', () => {
+    if (ytPlayerService.isYouTubeTrack(get().currentTrack)) return;
     if (Number.isFinite(audio.duration) && audio.duration > 0) {
       set({ duration: audio.duration });
     }
@@ -220,12 +224,14 @@ const setupAudioListeners = (
 
   // Auto-advance to next track when playback ends
   audio.addEventListener('ended', () => {
+    if (ytPlayerService.isYouTubeTrack(get().currentTrack)) return;
     if (audio.currentTime > 1) {
       get().playNext();
     }
   });
 
   audio.addEventListener('playing', () => {
+    if (ytPlayerService.isYouTubeTrack(get().currentTrack)) return;
     consecutiveErrors = 0;
     retryAttemptedForTrackId = null;
     if (skipTimer) {
@@ -245,6 +251,7 @@ const setupAudioListeners = (
   });
 
   audio.addEventListener('play', () => {
+    if (ytPlayerService.isYouTubeTrack(get().currentTrack)) return;
     set({ isPlaying: true });
     if (typeof window !== 'undefined' && 'mediaSession' in navigator) {
       navigator.mediaSession.playbackState = 'playing';
@@ -252,6 +259,7 @@ const setupAudioListeners = (
   });
 
   audio.addEventListener('pause', () => {
+    if (ytPlayerService.isYouTubeTrack(get().currentTrack)) return;
     set({ isPlaying: false });
     if (typeof window !== 'undefined' && 'mediaSession' in navigator) {
       navigator.mediaSession.playbackState = 'paused';
@@ -260,13 +268,12 @@ const setupAudioListeners = (
 
   // Audio error recovery & streaming fallback
   const handleAudioError = async (e: Event | string) => {
-    console.error('[BeatSync Audio] Error playing audio:', e);
     const { currentTrack, queue } = get();
-
-    if (!currentTrack) {
-      set({ isPlaying: false, isLoadingStream: false });
+    if (!currentTrack || ytPlayerService.isYouTubeTrack(currentTrack)) {
       return;
     }
+
+    console.error('[BeatSync Audio] Error playing audio:', e);
 
     // On error, toast with sonner: toast.error("Stream failed. Auto-retrying...")
     toast.error("Stream failed. Auto-retrying...", { id: 'stream-status' });
@@ -367,6 +374,61 @@ const setupAudioListeners = (
   audio.addEventListener('error', handleAudioError);
 };
 
+/**
+ * Universal playback dispatcher:
+ * Routes YouTube tracks directly to the client-side YouTube IFrame player,
+ * and routes local/direct media files to HTMLAudioElement.
+ */
+const startTrackPlayback = (
+  track: Track,
+  set: (state: Partial<AudioState> | ((state: AudioState) => Partial<AudioState>)) => void
+) => {
+  const isYt = ytPlayerService.isYouTubeTrack(track);
+
+  if (isYt) {
+    // 1. Detach and pause HTML5 audio element so it never plays fallback mock files
+    const audio = getAudioElement();
+    if (audio) {
+      audio.pause();
+      audio.removeAttribute('src');
+    }
+
+    // 2. Stream real YouTube audio directly inside the user's browser (residential IP)
+    ytPlayerService.loadAndPlay(track.id, 0);
+  } else {
+    // 1. Pause YouTube player
+    ytPlayerService.stop();
+
+    // 2. Stream local mock / direct audio via HTMLAudioElement
+    const audio = getAudioElement();
+    if (audio) {
+      const streamUrl = track.audio_url || `/api/stream?id=${encodeURIComponent(track.id)}`;
+      if (audio.src !== streamUrl) {
+        audio.src = streamUrl;
+        audio.currentTime = 0;
+        audio.load();
+      }
+
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            consecutiveErrors = 0;
+            set({ isPlaying: true, isLoadingStream: false });
+          })
+          .catch((error) => {
+            if (error.name !== 'AbortError' && error.name !== 'NotAllowedError') {
+              console.warn('[BeatSync Audio] Playback prevented:', error);
+            }
+            set({ isPlaying: false, isLoadingStream: false });
+          });
+      }
+    } else {
+      set({ isLoadingStream: false });
+    }
+  }
+};
+
 export const useAudioStore = create<AudioState>((set, get) => {
   // Initialize listeners on client side
   if (typeof window !== 'undefined') {
@@ -435,6 +497,7 @@ export const useAudioStore = create<AudioState>((set, get) => {
 
     setQueue: (tracks: Track[], startIndex = 0) => {
       if (!tracks || tracks.length === 0) {
+        ytPlayerService.stop();
         const audio = getAudioElement();
         if (audio) {
           audio.pause();
@@ -471,7 +534,6 @@ export const useAudioStore = create<AudioState>((set, get) => {
       consecutiveErrors = 0;
       retryAttemptedForTrackId = null;
 
-      const audio = getAudioElement();
       const currentQueue = get().queue;
 
       let newIndex = currentQueue.findIndex((t) => t.id === track.id);
@@ -497,33 +559,7 @@ export const useAudioStore = create<AudioState>((set, get) => {
       registerMediaSessionHandlers(get);
       recordRecentlyPlayed(track);
 
-      if (audio) {
-        // SYNCHRONOUS playback start to preserve browser user activation
-        const streamUrl = track.audio_url || `/api/stream?id=${encodeURIComponent(track.id)}`;
-
-        if (audio.src !== streamUrl) {
-          audio.src = streamUrl;
-          audio.currentTime = 0;
-          audio.load();
-        }
-
-        const playPromise = audio.play();
-        if (playPromise !== undefined) {
-          playPromise
-            .then(() => {
-              consecutiveErrors = 0;
-              set({ isPlaying: true, isLoadingStream: false });
-            })
-            .catch((error) => {
-              if (error.name !== 'AbortError' && error.name !== 'NotAllowedError') {
-                console.warn('[BeatSync Audio] Playback prevented:', error);
-              }
-              set({ isPlaying: false, isLoadingStream: false });
-            });
-        }
-      } else {
-        set({ isLoadingStream: false });
-      }
+      startTrackPlayback(track, set);
 
       // Background task: fetch 10-15 similar songs and append into queue (Song Radio)
       get().fetchAutoQueue(track);
@@ -549,33 +585,7 @@ export const useAudioStore = create<AudioState>((set, get) => {
       registerMediaSessionHandlers(get);
       recordRecentlyPlayed(targetTrack);
 
-      const audio = getAudioElement();
-      if (audio) {
-        const streamUrl = targetTrack.audio_url || `/api/stream?id=${encodeURIComponent(targetTrack.id)}`;
-
-        if (audio.src !== streamUrl) {
-          audio.src = streamUrl;
-          audio.currentTime = 0;
-          audio.load();
-        }
-
-        const playPromise = audio.play();
-        if (playPromise !== undefined) {
-          playPromise
-            .then(() => {
-              consecutiveErrors = 0;
-              set({ isPlaying: true, isLoadingStream: false });
-            })
-            .catch((error) => {
-              if (error.name !== 'AbortError' && error.name !== 'NotAllowedError') {
-                console.warn('[BeatSync Audio] Playback prevented:', error);
-              }
-              set({ isPlaying: false, isLoadingStream: false });
-            });
-        }
-      } else {
-        set({ isLoadingStream: false });
-      }
+      startTrackPlayback(targetTrack, set);
 
       // If queue has fewer than 2 songs left, automatically fetch and append more related tracks
       if (index >= queue.length - 2) {
@@ -612,33 +622,7 @@ export const useAudioStore = create<AudioState>((set, get) => {
       updateMediaSession(selectedTrack);
       registerMediaSessionHandlers(get);
 
-      const audio = getAudioElement();
-      if (audio) {
-        const streamUrl = selectedTrack.audio_url || `/api/stream?id=${encodeURIComponent(selectedTrack.id)}`;
-
-        if (audio.src !== streamUrl) {
-          audio.src = streamUrl;
-          audio.currentTime = 0;
-          audio.load();
-        }
-
-        const playPromise = audio.play();
-        if (playPromise !== undefined) {
-          playPromise
-            .then(() => {
-              consecutiveErrors = 0;
-              set({ isPlaying: true, isLoadingStream: false });
-            })
-            .catch((err) => {
-              if (err.name !== 'AbortError' && err.name !== 'NotAllowedError') {
-                console.warn('[BeatSync Audio] Autoplay prevented:', err);
-              }
-              set({ isPlaying: false, isLoadingStream: false });
-            });
-        }
-      } else {
-        set({ isLoadingStream: false });
-      }
+      startTrackPlayback(selectedTrack, set);
 
       // Enrich queue with Song Radio related tracks
       get().fetchAutoQueue(selectedTrack);
@@ -652,6 +636,13 @@ export const useAudioStore = create<AudioState>((set, get) => {
           queueIndex: 0,
         });
       } else {
+        ytPlayerService.stop();
+        const audio = getAudioElement();
+        if (audio) {
+          audio.pause();
+          audio.removeAttribute('src');
+          audio.load();
+        }
         set({
           queue: [],
           queueIndex: -1,
@@ -739,7 +730,6 @@ export const useAudioStore = create<AudioState>((set, get) => {
     },
 
     togglePlay: () => {
-      const audio = getAudioElement();
       const { isPlaying, currentTrack, queue, queueIndex } = get();
 
       if (!currentTrack) {
@@ -750,41 +740,54 @@ export const useAudioStore = create<AudioState>((set, get) => {
         return;
       }
 
-      if (audio) {
+      if (ytPlayerService.isYouTubeTrack(currentTrack)) {
         if (isPlaying) {
-          audio.pause();
-          set({ isPlaying: false });
+          ytPlayerService.pause();
         } else {
-          const playPromise = audio.play();
-          if (playPromise !== undefined) {
-            playPromise
-              .then(() => {
-                set({ isPlaying: true });
-              })
-              .catch((error) => {
-                if (error.name !== 'AbortError') {
-                  console.warn('[BeatSync Audio] Playback prevented:', error);
-                }
-                set({ isPlaying: false });
-              });
-          }
+          ytPlayerService.play();
         }
       } else {
-        set({ isPlaying: !isPlaying });
+        const audio = getAudioElement();
+        if (audio) {
+          if (isPlaying) {
+            audio.pause();
+            set({ isPlaying: false });
+          } else {
+            const playPromise = audio.play();
+            if (playPromise !== undefined) {
+              playPromise
+                .then(() => {
+                  set({ isPlaying: true });
+                })
+                .catch((error) => {
+                  if (error.name !== 'AbortError') {
+                    console.warn('[BeatSync Audio] Playback prevented:', error);
+                  }
+                  set({ isPlaying: false });
+                });
+            }
+          }
+        } else {
+          set({ isPlaying: !isPlaying });
+        }
       }
     },
 
     seek: (seconds: number) => {
-      const audio = getAudioElement();
-      const { duration } = get();
+      const { currentTrack, duration } = get();
       const safeDuration = duration > 0 ? duration : Infinity;
       const targetTime = Math.max(0, Math.min(seconds, safeDuration));
 
-      if (audio) {
-        try {
-          audio.currentTime = targetTime;
-        } catch (err) {
-          console.warn('[BeatSync Audio] Error seeking:', err);
+      if (ytPlayerService.isYouTubeTrack(currentTrack)) {
+        ytPlayerService.seekTo(targetTime);
+      } else {
+        const audio = getAudioElement();
+        if (audio) {
+          try {
+            audio.currentTime = targetTime;
+          } catch (err) {
+            console.warn('[BeatSync Audio] Error seeking:', err);
+          }
         }
       }
 
@@ -792,13 +795,15 @@ export const useAudioStore = create<AudioState>((set, get) => {
     },
 
     setVolume: (volume: number) => {
-      const audio = getAudioElement();
       const clampedVolume = Math.max(0, Math.min(1, volume));
 
       if (clampedVolume > 0) {
         lastNonZeroVolume = clampedVolume;
       }
 
+      ytPlayerService.setVolume(clampedVolume);
+
+      const audio = getAudioElement();
       if (audio) {
         audio.volume = clampedVolume;
       }
@@ -852,16 +857,21 @@ export const useAudioStore = create<AudioState>((set, get) => {
     },
 
     playPrevious: () => {
-      const { queue, queueIndex, currentTime } = get();
+      const { queue, queueIndex, currentTime, currentTrack } = get();
       if (!queue || queue.length === 0) return;
 
       // If current time > 3 seconds, restart current track
       if (currentTime > 3) {
         get().seek(0);
-        const audio = getAudioElement();
-        if (audio && audio.paused) {
-          audio.play().catch(() => {});
+        if (ytPlayerService.isYouTubeTrack(currentTrack)) {
+          ytPlayerService.play();
           set({ isPlaying: true });
+        } else {
+          const audio = getAudioElement();
+          if (audio && audio.paused) {
+            audio.play().catch(() => {});
+            set({ isPlaying: true });
+          }
         }
         return;
       }
@@ -880,6 +890,8 @@ export const useAudioStore = create<AudioState>((set, get) => {
       }
       consecutiveErrors = 0;
       retryAttemptedForTrackId = null;
+
+      ytPlayerService.stop();
 
       if (audioInstance) {
         try {
