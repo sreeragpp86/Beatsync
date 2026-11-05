@@ -266,9 +266,10 @@ export async function GET(request: NextRequest) {
             );
             break;
           }
-        } catch (instanceErr: any) {
+        } catch (instanceErr: unknown) {
+          const errMsg = instanceErr instanceof Error ? instanceErr.message : String(instanceErr);
           console.warn(
-            `[BeatSync Stream] Fallback instance ${instance} failed (${instanceErr?.message || "error"}). Seamlessly attempting next...`
+            `[BeatSync Stream] Fallback instance ${instance} failed (${errMsg}). Seamlessly attempting next...`
           );
         }
       }

@@ -16,7 +16,6 @@ import {
   Sparkles,
   TrendingUp,
   Flame,
-  Radio,
 } from "lucide-react";
 import { Track } from "@/types/track";
 import { useAudioStore } from "@/stores/useAudioStore";

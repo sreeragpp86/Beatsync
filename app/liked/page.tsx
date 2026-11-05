@@ -10,7 +10,6 @@ import {
   ChevronRight,
   Compass,
   Loader2,
-  Sparkles,
 } from "lucide-react";
 import { useAudioStore } from "@/stores/useAudioStore";
 import { useLikesStore } from "@/stores/useLikesStore";
@@ -38,7 +37,10 @@ export function LikedSongsContent() {
     syncLikes();
   }, [syncLikes]);
 
-  const tracks = mounted ? likedTracks : [];
+  const tracks = useMemo(
+    () => (mounted ? likedTracks : []),
+    [mounted, likedTracks]
+  );
 
   const isCurrentTrackInLiked = Boolean(
     currentTrack && tracks.some((t) => t.id === currentTrack.id)

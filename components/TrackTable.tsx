@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Play, Pause, Clock, Music2 } from "lucide-react";
+import { Play, Clock, Music2 } from "lucide-react";
 import { Track } from "@/types/track";
 import { useAudioStore } from "@/stores/useAudioStore";
 import { LikeButton } from "@/components/LikeButton";

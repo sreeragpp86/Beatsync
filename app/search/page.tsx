@@ -138,18 +138,6 @@ function SearchHubContent() {
     syncLikes();
   }, [syncLikes]);
 
-  // Read initial query parameter or autofocus
-  useEffect(() => {
-    const initialQuery = searchParams.get("q") || searchParams.get("query") || "";
-    if (initialQuery) {
-      setSearchQuery(initialQuery);
-      performSearch(initialQuery);
-    } else {
-      // Autofocus search input when visiting search hub
-      searchInputRef.current?.focus();
-    }
-  }, [searchParams]);
-
   // Debounced search handler (300ms) with AbortController
   const performSearch = useCallback(async (query: string) => {
     const trimmed = query.trim();
@@ -180,8 +168,8 @@ function SearchHubContent() {
         const data = await res.json();
         setTracks(data.tracks || []);
       }
-    } catch (err: any) {
-      if (err.name !== "AbortError") {
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name !== "AbortError") {
         console.warn("[BeatSync Search] Error searching tracks:", err);
       }
     } finally {
@@ -190,6 +178,18 @@ function SearchHubContent() {
       }
     }
   }, []);
+
+  // Read initial query parameter or autofocus
+  useEffect(() => {
+    const initialQuery = searchParams.get("q") || searchParams.get("query") || "";
+    if (initialQuery) {
+      setSearchQuery(initialQuery);
+      performSearch(initialQuery);
+    } else {
+      // Autofocus search input when visiting search hub
+      searchInputRef.current?.focus();
+    }
+  }, [searchParams, performSearch]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;

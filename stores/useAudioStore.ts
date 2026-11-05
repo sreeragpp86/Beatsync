@@ -142,48 +142,10 @@ const getAudioElement = (): HTMLAudioElement | null => {
     audioInstance = new Audio();
     audioInstance.preload = 'metadata';
     audioInstance.volume = 0.8;
-    (window as any).__audioInstance = audioInstance;
+    (window as unknown as { __audioInstance?: HTMLAudioElement }).__audioInstance = audioInstance;
   }
 
   return audioInstance;
-};
-
-interface ResolvedStream {
-  url: string;
-  isFallback: boolean;
-}
-
-// Helper: resolve stream URL for track
-const resolveAudioStreamUrl = async (track: Track): Promise<ResolvedStream> => {
-  // If track already has direct external audio URL, use it directly
-  if (
-    track.audio_url &&
-    track.audio_url.startsWith('http') &&
-    !track.audio_url.includes('/api/stream')
-  ) {
-    return { url: track.audio_url, isFallback: false };
-  }
-
-  try {
-    const res = await fetch(`/api/stream?id=${encodeURIComponent(track.id)}&json=true`);
-    if (res.ok) {
-      const data = await res.json();
-      if (data.streamUrl) {
-        return {
-          url: data.streamUrl,
-          isFallback: Boolean(data.isFallback),
-        };
-      }
-    }
-  } catch (err) {
-    console.warn('[BeatSync Audio] Error resolving direct stream URL:', err);
-  }
-
-  // Fallback to streaming proxy route
-  return {
-    url: `/api/stream?id=${encodeURIComponent(track.id)}`,
-    isFallback: false,
-  };
 };
 
 const scheduleSkipNext = (
@@ -369,8 +331,12 @@ const setupAudioListeners = (
             toastMessage: null,
           });
         }
-      } catch (retryErr: any) {
-        if (retryErr?.name !== 'AbortError' && retryErr?.name !== 'NotAllowedError') {
+      } catch (retryErr: unknown) {
+        if (
+          retryErr instanceof Error &&
+          retryErr.name !== 'AbortError' &&
+          retryErr.name !== 'NotAllowedError'
+        ) {
           console.warn('[BeatSync Audio] Recovery retry failed:', retryErr);
         }
         toast.error('Unable to stream this track. Skipping...', { id: 'stream-status' });
@@ -928,7 +894,7 @@ export const useAudioStore = create<AudioState>((set, get) => {
       audioInstance = new Audio();
       audioInstance.preload = 'metadata';
       audioInstance.volume = get().volume || 0.8;
-      (window as any).__audioInstance = audioInstance;
+      (window as unknown as { __audioInstance?: HTMLAudioElement }).__audioInstance = audioInstance;
 
       setupAudioListeners(audioInstance, set, get);
 
@@ -953,5 +919,5 @@ export const reloadAudioSingleton = () => {
 };
 
 if (typeof window !== 'undefined') {
-  (window as any).__useAudioStore = useAudioStore;
+  (window as unknown as { __useAudioStore?: typeof useAudioStore }).__useAudioStore = useAudioStore;
 }

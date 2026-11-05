@@ -10,10 +10,7 @@ import {
   Library,
   Plus,
   Activity,
-  Music2,
-  Sparkles,
   Disc3,
-  Compass,
 } from "lucide-react";
 import { useLikesStore } from "@/stores/useLikesStore";
 import { useAudioStore } from "@/stores/useAudioStore";

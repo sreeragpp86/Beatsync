@@ -19,8 +19,54 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "BeatSync - Web Player: Music for everyone",
-  description: "Spotify-inspired high performance music streaming web application with modern glassmorphism styling.",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://beatsync.vercel.app"),
+  title: "BeatSync — Stream Music for Free",
+  description: "Modern, fast, and completely free music streaming web app.",
+  keywords: [
+    "music streaming",
+    "free music",
+    "online player",
+    "invidious audio",
+    "youtube stream",
+    "beatsync",
+    "web audio",
+  ],
+  authors: [{ name: "BeatSync Team" }],
+  creator: "BeatSync",
+  openGraph: {
+    title: "BeatSync — Stream Music for Free",
+    description: "Modern, fast, and completely free music streaming web app.",
+    url: "https://beatsync.vercel.app",
+    siteName: "BeatSync",
+    locale: "en_US",
+    type: "website",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "BeatSync — Stream Music for Free",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "BeatSync — Stream Music for Free",
+    description: "Modern, fast, and completely free music streaming web app.",
+    images: ["/og-image.png"],
+    creator: "@beatsync",
+  },
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+    shortcut: ["/favicon.ico"],
+  },
+  manifest: "/site.webmanifest",
 };
 
 export default function RootLayout({

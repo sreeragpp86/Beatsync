@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Search, Heart, Sparkles } from "lucide-react";
+import { Home, Search, Heart } from "lucide-react";
 import { useLikesStore } from "@/stores/useLikesStore";
 
 export function MobileNav() {
