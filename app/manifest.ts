@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Tactile neomorphic music streaming web player",
     start_url: "/",
     display: "standalone",
-    background_color: "#E9ECEF",
-    theme_color: "#E9ECEF",
+    background_color: "#E4EBF5",
+    theme_color: "#E4EBF5",
     icons: [
       {
         src: "/icon-192.png",
