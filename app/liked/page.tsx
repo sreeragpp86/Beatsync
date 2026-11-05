@@ -15,6 +15,7 @@ import { useAudioStore } from "@/stores/useAudioStore";
 import { useLikesStore } from "@/stores/useLikesStore";
 import { TrackTable } from "@/components/TrackTable";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { InstallPrompt } from "@/components/InstallPrompt";
 
 function formatTotalDuration(seconds: number): string {
   if (!seconds || seconds <= 0) return "0 min";
@@ -28,7 +29,7 @@ function formatTotalDuration(seconds: number): string {
   return `${minutes} min ${remainingSecs} sec`;
 }
 
-export function LikedSongsContent() {
+function LikedSongsContent() {
   const [mounted, setMounted] = useState(false);
   const { currentTrack, isPlaying, setQueue, togglePlay } = useAudioStore();
   const { likedTracks, syncLikes } = useLikesStore();
@@ -83,6 +84,7 @@ export function LikedSongsContent() {
         </div>
 
         <div className="flex items-center gap-3">
+          <InstallPrompt />
           <ThemeToggle />
           <Link
             href="/search"

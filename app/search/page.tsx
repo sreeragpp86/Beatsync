@@ -28,6 +28,7 @@ import { useLikesStore } from "@/stores/useLikesStore";
 import { TrackCard } from "@/components/TrackCard";
 import { LikeButton } from "@/components/LikeButton";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { InstallPrompt } from "@/components/InstallPrompt";
 
 interface GenreMood {
   id: string;
@@ -285,8 +286,9 @@ function SearchHubContent() {
           </div>
         </div>
 
-        {/* Right side: Theme Toggle + Liked Pill */}
+        {/* Right side: Install Prompt + Theme Toggle + Liked Pill */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0 ml-2">
+          <InstallPrompt />
           <ThemeToggle />
 
           <Link

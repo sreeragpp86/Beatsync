@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { Headphones, CheckCircle2, AlertCircle, Heart, Compass } from "lucide-react";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { useLikesStore } from "@/stores/useLikesStore";
+import { InstallPrompt } from "@/components/InstallPrompt";
 
 export function Navbar() {
   const [mounted, setMounted] = useState(false);
@@ -72,23 +73,28 @@ export function Navbar() {
         </nav>
       </div>
 
-      {/* Supabase status badge */}
-      <div className="flex items-center gap-2 rounded-full bg-[var(--bg-surface)] shadow-sunken-sm px-3.5 py-1.5 text-xs text-[var(--text-secondary)]">
-        {isSupabaseConfigured ? (
-          <>
-            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-            <span className="hidden sm:inline">Supabase Connected</span>
-            <span className="sm:hidden">Connected</span>
-          </>
-        ) : (
-          <>
-            <AlertCircle className="h-3.5 w-3.5 text-amber-500" />
-            <span className="text-[var(--text-secondary)]">
-              Supabase:{" "}
-              <span className="text-[var(--text-primary)] font-mono">Mock Fallback</span>
-            </span>
-          </>
-        )}
+      {/* Right Controls: Install Prompt & Supabase Status */}
+      <div className="flex items-center gap-3">
+        <InstallPrompt />
+
+        {/* Supabase status badge */}
+        <div className="flex items-center gap-2 rounded-full bg-[var(--bg-surface)] shadow-sunken-sm px-3.5 py-1.5 text-xs text-[var(--text-secondary)]">
+          {isSupabaseConfigured ? (
+            <>
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+              <span className="hidden sm:inline">Supabase Connected</span>
+              <span className="sm:hidden">Connected</span>
+            </>
+          ) : (
+            <>
+              <AlertCircle className="h-3.5 w-3.5 text-amber-500" />
+              <span className="text-[var(--text-secondary)]">
+                Supabase:{" "}
+                <span className="text-[var(--text-primary)] font-mono">Mock Fallback</span>
+              </span>
+            </>
+          )}
+        </div>
       </div>
     </header>
   );

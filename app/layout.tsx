@@ -58,6 +58,11 @@ export const metadata: Metadata = {
     images: ["/og-image.png"],
     creator: "@beatsync",
   },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "BeatSync",
+  },
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },
@@ -68,7 +73,7 @@ export const metadata: Metadata = {
     ],
     shortcut: ["/favicon.ico"],
   },
-  manifest: "/site.webmanifest",
+  manifest: "/manifest.webmanifest",
 };
 
 export default function RootLayout({
@@ -83,6 +88,10 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <head>
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="BeatSync" />
         <script
           dangerouslySetInnerHTML={{
             __html: `

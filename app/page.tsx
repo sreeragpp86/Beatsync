@@ -22,6 +22,7 @@ import { useAudioStore } from "@/stores/useAudioStore";
 import { useLikesStore } from "@/stores/useLikesStore";
 import { TrackCard } from "@/components/TrackCard";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { InstallPrompt } from "@/components/InstallPrompt";
 
 interface CarouselSectionProps {
   title: string;
@@ -248,8 +249,9 @@ function HomeContent() {
           </Link>
         </div>
 
-        {/* Right side: Theme Toggle + Liked Pill */}
+        {/* Right side: Install Prompt + Theme Toggle + Liked Pill */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0 ml-2">
+          <InstallPrompt />
           <ThemeToggle />
 
           <Link
