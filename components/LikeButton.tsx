@@ -10,7 +10,6 @@ export interface LikeButtonProps {
   trackId?: string;
   size?: number;
   className?: string;
-  color?: "green" | "rose" | "red";
 }
 
 export function LikeButton({
@@ -18,7 +17,6 @@ export function LikeButton({
   trackId,
   size = 18,
   className = "",
-  color = "green",
 }: LikeButtonProps) {
   const [mounted, setMounted] = useState(false);
   const [isPopping, setIsPopping] = useState(false);
@@ -40,7 +38,7 @@ export function LikeButton({
 
     // Trigger spring pop animation
     setIsPopping(true);
-    setTimeout(() => setIsPopping(false), 260);
+    setTimeout(() => setIsPopping(false), 240);
 
     if (track) {
       toggleLike(track);
@@ -49,27 +47,26 @@ export function LikeButton({
     }
   };
 
-  const activeColorClass =
-    color === "rose" || color === "red"
-      ? "text-[#F43F5E] fill-[#F43F5E] drop-shadow-[0_0_8px_rgba(244,63,94,0.45)]"
-      : "text-[#1DB954] fill-[#1DB954] drop-shadow-[0_0_8px_rgba(29,185,84,0.45)]";
-
   return (
     <button
       type="button"
       onClick={handleClick}
       aria-label={liked ? "Remove from Liked Songs" : "Save to Liked Songs"}
       title={liked ? "Remove from Liked Songs" : "Save to Liked Songs"}
-      className={`group relative p-1.5 rounded-full transition-transform active:scale-90 focus-visible:outline-none cursor-pointer select-none ${className}`}
+      className={`group relative flex items-center justify-center rounded-xl bg-[var(--bg-surface)] p-2 transition-all duration-150 cursor-pointer select-none shrink-0 ${
+        liked
+          ? "shadow-sunken-sm"
+          : "shadow-raised-sm hover:scale-105 active:shadow-sunken-sm"
+      } ${className}`}
     >
       <Heart
         size={size}
         className={`transition-all duration-200 ease-out transform ${
-          isPopping ? "scale-125 rotate-[-6deg]" : "scale-100 rotate-0"
+          isPopping ? "scale-120 rotate-[-6deg]" : "scale-100 rotate-0"
         } ${
           liked
-            ? activeColorClass
-            : "text-[#B3B3B3] hover:text-white hover:scale-110"
+            ? "text-[#E07A5F] dark:text-[#F472B6] fill-[#E07A5F] dark:fill-[#F472B6]"
+            : "text-[var(--text-secondary)] fill-transparent group-hover:text-[var(--text-primary)]"
         }`}
       />
     </button>

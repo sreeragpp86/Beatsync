@@ -53,24 +53,24 @@ export function SearchBar({
   };
 
   return (
-    <div className={`relative flex items-center ${className}`}>
+    <div className={`relative flex items-center w-full ${className}`}>
       {/* Search Icon */}
-      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400 pointer-events-none" />
+      <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-secondary)] pointer-events-none" />
 
-      {/* Styled Dark Theme Input */}
+      {/* Recessed Trench Neomorphic Input */}
       <input
         type="text"
         value={inputValue}
         onChange={(e) => setInputValue(e.target.value)}
         placeholder={placeholder}
-        className="w-full h-10 pl-10 pr-14 rounded-xl border border-zinc-800 bg-zinc-900/70 text-sm text-zinc-100 placeholder-zinc-500 shadow-inner focus:outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/40 transition-colors"
+        className="w-full h-11 pl-11 pr-14 rounded-2xl bg-[var(--bg-surface)] shadow-sunken border-none text-sm font-medium text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none transition-all"
       />
 
       {/* Right Controls: Loading Spinner & Clear Button */}
-      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+      <div className="absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
         {isLoading && (
           <Loader2
-            className="h-4 w-4 animate-spin text-emerald-400"
+            className="h-4 w-4 animate-spin text-[var(--text-secondary)]"
             aria-label="Searching..."
           />
         )}
@@ -79,7 +79,7 @@ export function SearchBar({
             type="button"
             onClick={handleClear}
             aria-label="Clear search query"
-            className="rounded p-0.5 text-zinc-400 hover:text-zinc-200 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-400 cursor-pointer"
+            className="rounded-full p-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors focus-visible:outline-none cursor-pointer"
           >
             <X className="h-4 w-4" />
           </button>

@@ -79,40 +79,40 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`dark ${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="h-full overflow-hidden bg-[#06060c] text-white selection:bg-[#1DB954] selection:text-black font-sans relative">
-        {/* Luminous Ambient Background Mesh for Glassmorphism */}
-        <div
-          className="fixed inset-0 pointer-events-none overflow-hidden z-0"
-          aria-hidden="true"
-        >
-          {/* Emerald / Cyan upper ambient orb */}
-          <div className="ambient-orb ambient-orb-1" />
-          {/* Violet / Purple upper-right ambient orb */}
-          <div className="ambient-orb ambient-orb-2" />
-          {/* Deep Indigo center-lower ambient orb */}
-          <div className="ambient-orb ambient-orb-3" />
-          {/* Soft Rose / Fuchsia accent orb */}
-          <div className="ambient-orb ambient-orb-4" />
-          {/* Ambient radial vignette */}
-          <div className="absolute inset-0 bg-radial from-transparent via-[#06060c]/40 to-[#06060c]/85" />
-        </div>
-
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                const stored = localStorage.getItem('beatsync_theme');
+                if (stored === 'dark') {
+                  document.documentElement.classList.add('dark');
+                } else {
+                  document.documentElement.classList.remove('dark');
+                }
+              } catch (_) {}
+            `,
+          }}
+        />
+      </head>
+      <body className="h-full overflow-hidden bg-[var(--bg-surface)] text-[var(--text-primary)] transition-colors duration-200 font-sans relative select-none">
         {/* Main Application Container with Dynamic Viewport Height for mobile */}
         <div className="relative z-10 flex h-[100dvh] flex-col overflow-hidden bg-transparent">
           {/* Main Workspace (Sidebar + Scrollable Panel) */}
-          <div className="flex flex-1 overflow-hidden p-1.5 sm:p-2.5 gap-2.5 pb-0">
+          <div className="flex flex-1 overflow-hidden p-2 sm:p-3 gap-3 pb-0">
             {/* Sidebar */}
             <Sidebar />
 
-            {/* Main Content Glass Panel */}
-            <main className="glass-panel flex-1 rounded-xl sm:rounded-2xl overflow-y-auto relative flex flex-col mb-[124px] md:mb-[88px] shadow-2xl">
+            {/* Main Content Soft Neomorphic Panel */}
+            <main className="flex-1 rounded-2xl overflow-y-auto relative flex flex-col mb-[116px] md:mb-[108px] bg-[var(--bg-surface)] shadow-sunken-sm">
               {children}
             </main>
           </div>
 
-          {/* Persistent Player Dock (Mini Player on mobile, Full Dock on desktop) */}
+          {/* Persistent Player Dock (Mini Player on mobile, Floating Dock on desktop) */}
           <PlayerBar />
 
           {/* Fullscreen Expandable Now Playing Modal */}
@@ -129,7 +129,7 @@ export default function RootLayout({
         <KeyboardShortcuts />
 
         {/* Sonner Toast Notification Center & Vercel Telemetry */}
-        <Toaster theme="dark" richColors position="bottom-right" />
+        <Toaster richColors position="bottom-right" />
         <Analytics />
       </body>
     </html>

@@ -28,9 +28,9 @@ export function Toast() {
     <div
       role="alert"
       aria-live="assertive"
-      className="fixed bottom-[96px] right-4 sm:right-6 z-50 max-w-sm rounded-lg border border-[#282828] bg-[#181818] p-3.5 shadow-2xl backdrop-blur-md transition-all duration-300 animate-in fade-in slide-in-from-bottom-2 flex items-center gap-3 text-white"
+      className="fixed bottom-[96px] right-4 sm:right-6 z-50 max-w-sm rounded-2xl bg-[var(--bg-surface)] p-3.5 shadow-raised transition-all duration-300 animate-in fade-in slide-in-from-bottom-2 flex items-center gap-3 text-[var(--text-primary)]"
     >
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#1DB954]/15 text-[#1DB954]">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--bg-surface)] shadow-sunken-sm text-[#E07A5F]">
         <AlertCircle className="h-4 w-4" />
       </div>
 
@@ -41,7 +41,7 @@ export function Toast() {
       <button
         onClick={() => setToastMessage(null)}
         aria-label="Dismiss notification"
-        className="rounded-md p-1 text-[#B3B3B3] transition-colors hover:bg-[#282828] hover:text-white"
+        className="rounded-lg p-1 text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] hover:shadow-raised-sm active:shadow-sunken-sm"
       >
         <X className="h-3.5 w-3.5" />
       </button>

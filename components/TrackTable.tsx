@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Play, Clock, Music2 } from "lucide-react";
+import { Play, Pause, Clock, Music2 } from "lucide-react";
 import { Track } from "@/types/track";
 import { useAudioStore } from "@/stores/useAudioStore";
 import { LikeButton } from "@/components/LikeButton";
@@ -38,19 +38,19 @@ export function TrackTable({
   };
 
   return (
-    <div className="overflow-hidden rounded-md select-none">
-      {/* Table Header */}
-      <div className="grid grid-cols-12 gap-2 sm:gap-4 border-b border-[#282828] px-2 sm:px-4 py-2.5 text-xs font-semibold text-[#B3B3B3] uppercase tracking-wider">
+    <div className="overflow-hidden rounded-2xl select-none">
+      {/* Table Header (No harsh borders) */}
+      <div className="grid grid-cols-12 gap-2 sm:gap-4 px-3 sm:px-5 py-3 text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
         <div className="col-span-1 text-center">#</div>
         <div className="col-span-7 sm:col-span-5">Title</div>
         <div className="hidden sm:block sm:col-span-4">Album</div>
-        <div className="col-span-4 sm:col-span-2 text-right flex items-center justify-end gap-1.5 pr-1 sm:pr-2">
+        <div className="col-span-4 sm:col-span-2 text-right flex items-center justify-end gap-1.5 pr-2">
           <Clock className="h-3.5 w-3.5" />
         </div>
       </div>
 
-      {/* Track Rows */}
-      <div className="mt-1 space-y-0.5">
+      {/* Track Rows (Neomorphic Soft Plates on hover / selection) */}
+      <div className="space-y-1.5 px-1 py-1">
         {tracks.map((track, index) => {
           const isActive = currentTrack?.id === track.id;
           const isTrackPlaying = isActive && isPlaying;
@@ -59,38 +59,35 @@ export function TrackTable({
             <div
               key={track.id}
               onClick={() => handleRowClick(track, index)}
-              className={`group grid grid-cols-12 items-center gap-2 sm:gap-4 px-2 sm:px-4 py-2 rounded-md cursor-pointer transition-colors ${
+              className={`group grid grid-cols-12 items-center gap-2 sm:gap-4 px-3 sm:px-4 py-2.5 rounded-xl cursor-pointer transition-all duration-200 border-none ${
                 isActive
-                  ? "bg-[#282828] text-white"
-                  : "hover:bg-[#282828]/60 text-[#B3B3B3] hover:text-white"
+                  ? "bg-[var(--bg-surface)] shadow-sunken-sm text-[var(--text-primary)]"
+                  : "bg-transparent hover:bg-[var(--bg-surface)] hover:shadow-raised-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               }`}
             >
-              {/* Track Index or Playing Indicator */}
+              {/* Track Index or Play Icon */}
               <div className="col-span-1 text-center">
-                {isTrackPlaying ? (
-                  <div className="flex items-end justify-center gap-0.5 h-3.5 mx-auto">
-                    <span className="w-0.5 bg-[#1DB954] rounded-full animate-waveform-1" />
-                    <span className="w-0.5 bg-[#1DB954] rounded-full animate-waveform-2" />
-                    <span className="w-0.5 bg-[#1DB954] rounded-full animate-waveform-3" />
-                    <span className="w-0.5 bg-[#1DB954] rounded-full animate-waveform-4" />
+                <div className="relative flex items-center justify-center">
+                  <span
+                    className={`text-xs font-mono group-hover:opacity-0 transition-opacity ${
+                      isActive ? "text-[var(--text-primary)] font-bold" : "text-[var(--text-secondary)]"
+                    }`}
+                  >
+                    {index + 1}
+                  </span>
+                  <div className="absolute opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    {isTrackPlaying ? (
+                      <Pause className="h-3.5 w-3.5 text-[var(--text-primary)] fill-current" />
+                    ) : (
+                      <Play className="h-3.5 w-3.5 text-[var(--text-primary)] fill-current ml-0.5" />
+                    )}
                   </div>
-                ) : (
-                  <div className="relative flex items-center justify-center">
-                    <span
-                      className={`text-sm font-mono group-hover:opacity-0 ${
-                        isActive ? "text-[#1DB954] font-bold" : "text-[#B3B3B3]"
-                      }`}
-                    >
-                      {index + 1}
-                    </span>
-                    <Play className="absolute h-3.5 w-3.5 text-white fill-white opacity-0 group-hover:opacity-100 transition-opacity ml-0.5" />
-                  </div>
-                )}
+                </div>
               </div>
 
               {/* Cover Art + Title + Artist */}
-              <div className="col-span-7 sm:col-span-5 flex items-center gap-2.5 sm:gap-3.5 min-w-0">
-                <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded bg-[#282828] shadow-sm">
+              <div className="col-span-7 sm:col-span-5 flex items-center gap-3 min-w-0">
+                <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-[var(--bg-surface)] shadow-raised-sm">
                   {track.cover_url ? (
                     <Image
                       src={track.cover_url}
@@ -100,39 +97,35 @@ export function TrackTable({
                       className="object-cover"
                     />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center text-[#B3B3B3]">
+                    <div className="flex h-full w-full items-center justify-center text-[var(--text-secondary)]">
                       <Music2 className="h-4 w-4" />
                     </div>
                   )}
                 </div>
                 <div className="min-w-0 flex-1 truncate">
                   <p
-                    className={`text-sm font-medium truncate ${
-                      isActive ? "text-[#1DB954]" : "text-white"
+                    className={`text-sm font-semibold truncate ${
+                      isActive ? "text-[var(--text-primary)]" : "text-[var(--text-primary)]"
                     }`}
                   >
                     {track.title}
                   </p>
-                  <p className="text-xs text-[#B3B3B3] truncate group-hover:text-white mt-0.5">
+                  <p className="text-xs text-[var(--text-secondary)] truncate mt-0.5">
                     {track.artist}
                   </p>
                 </div>
               </div>
 
               {/* Album */}
-              <div className="hidden sm:block sm:col-span-4 min-w-0 truncate text-xs text-[#B3B3B3]">
+              <div className="hidden sm:block sm:col-span-4 min-w-0 truncate text-xs text-[var(--text-secondary)]">
                 {track.album || "—"}
               </div>
 
               {/* Like Button & Duration */}
-              <div className="col-span-4 sm:col-span-2 flex items-center justify-end gap-2 sm:gap-3 text-right pr-1 sm:pr-2">
-                <LikeButton track={track} trackId={track.id} size={16} />
+              <div className="col-span-4 sm:col-span-2 flex items-center justify-end gap-2.5 sm:gap-3 text-right pr-1 sm:pr-2">
+                <LikeButton track={track} trackId={track.id} size={15} />
 
-                <span
-                  className={`text-xs font-mono tabular-nums ${
-                    isActive ? "text-[#1DB954]" : "text-[#B3B3B3]"
-                  }`}
-                >
+                <span className="text-xs font-mono tabular-nums text-[var(--text-secondary)]">
                   {formatTime(track.duration)}
                 </span>
               </div>

@@ -21,6 +21,7 @@ import { Track } from "@/types/track";
 import { useAudioStore } from "@/stores/useAudioStore";
 import { useLikesStore } from "@/stores/useLikesStore";
 import { TrackCard } from "@/components/TrackCard";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 interface CarouselSectionProps {
   title: string;
@@ -58,36 +59,36 @@ function CarouselSection({
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2">
-            {Icon && <Icon className="h-5 w-5 text-[#1DB954]" />}
-            <h2 className="text-2xl font-bold text-white tracking-tight hover:underline cursor-pointer">
+            {Icon && <Icon className="h-5 w-5 text-[#E07A5F]" />}
+            <h2 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight hover:underline cursor-pointer">
               {title}
             </h2>
           </div>
           {subtitle && (
-            <p className="text-xs text-[#B3B3B3] mt-0.5">{subtitle}</p>
+            <p className="text-xs text-[var(--text-secondary)] mt-0.5">{subtitle}</p>
           )}
         </div>
 
         {/* Carousel Controls */}
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        <div className="flex items-center gap-2">
           <button
             onClick={onPlayAll}
-            className="text-xs font-bold text-[#B3B3B3] hover:text-white uppercase tracking-wider px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full hover:bg-white/10 transition-colors cursor-pointer mr-1"
+            className="text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] uppercase tracking-wider px-3.5 py-1.5 rounded-full bg-[var(--bg-surface)] shadow-raised-sm active:shadow-sunken-sm transition-all cursor-pointer mr-1"
           >
             Play All
           </button>
-          <div className="hidden sm:flex items-center gap-1.5">
+          <div className="hidden sm:flex items-center gap-2">
             <button
               onClick={() => scroll("left")}
               aria-label={`Scroll ${title} left`}
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-[#B3B3B3] hover:text-white border border-white/5 transition-colors cursor-pointer shadow-sm"
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--bg-surface)] shadow-raised-sm active:shadow-sunken-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all cursor-pointer"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
             <button
               onClick={() => scroll("right")}
               aria-label={`Scroll ${title} right`}
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-[#B3B3B3] hover:text-white border border-white/5 transition-colors cursor-pointer shadow-sm"
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--bg-surface)] shadow-raised-sm active:shadow-sunken-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all cursor-pointer"
             >
               <ChevronRight className="h-4 w-4" />
             </button>
@@ -214,49 +215,51 @@ function HomeContent() {
 
   return (
     <div className="flex flex-col min-h-full">
-      {/* Sticky Top Bar: Navigation Arrows + Quick Search Pill + Liked Counter */}
-      <header className="sticky top-0 z-30 flex items-center justify-between px-3.5 py-2.5 sm:px-6 sm:py-4 bg-[#0c0c16]/95 backdrop-blur-xl border-b border-white/10 select-none">
+      {/* Sticky Top Bar: Navigation Arrows + Quick Search Pill + Theme Toggle + Liked Counter */}
+      <header className="sticky top-0 z-30 flex items-center justify-between px-3.5 py-3 sm:px-6 sm:py-4 bg-[var(--bg-surface)]/90 backdrop-blur-md shadow-raised-sm sm:rounded-b-2xl select-none">
         <div className="flex items-center gap-2.5 sm:gap-4 flex-1 max-w-2xl min-w-0">
           {/* Back / Forward Arrows */}
           <div className="hidden sm:flex items-center gap-2 shrink-0">
             <button
               onClick={() => router.back()}
               aria-label="Go back"
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-[#0a0a0a]/80 text-[#B3B3B3] hover:text-white transition-colors cursor-pointer"
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--bg-surface)] shadow-raised-sm active:shadow-sunken-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all cursor-pointer"
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
             <button
               onClick={() => router.forward()}
               aria-label="Go forward"
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-[#0a0a0a]/80 text-[#B3B3B3] hover:text-white transition-colors cursor-pointer"
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--bg-surface)] shadow-raised-sm active:shadow-sunken-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all cursor-pointer"
             >
               <ChevronRight className="h-5 w-5" />
             </button>
           </div>
 
-          {/* Quick Search Hub Button Pill */}
+          {/* Quick Search Hub Button Pill - Recessed Trench */}
           <Link
             href="/search"
-            className="relative flex items-center flex-1 max-w-md bg-[#242424] hover:bg-[#2a2a2a] rounded-full px-3 sm:px-3.5 py-2 sm:py-2.5 border border-transparent hover:border-white/20 transition-all text-sm group min-w-0"
+            className="relative flex items-center flex-1 max-w-md bg-[var(--bg-surface)] shadow-sunken rounded-full px-4 py-2 sm:py-2.5 transition-all text-sm group min-w-0"
           >
-            <Search className="h-4 sm:h-5 w-4 sm:w-5 text-[#B3B3B3] shrink-0 mr-2 sm:mr-2.5 group-hover:text-white transition-colors" />
-            <span className="text-[#757575] group-hover:text-[#B3B3B3] text-xs sm:text-sm font-medium transition-colors truncate">
+            <Search className="h-4 sm:h-5 w-4 sm:w-5 text-[var(--text-secondary)] shrink-0 mr-2 sm:mr-2.5 group-hover:text-[var(--text-primary)] transition-colors" />
+            <span className="text-[var(--text-secondary)] text-xs sm:text-sm font-medium transition-colors truncate">
               What do you want to play?
             </span>
           </Link>
         </div>
 
-        {/* Right side status / profile pill */}
+        {/* Right side: Theme Toggle + Liked Pill */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0 ml-2">
+          <ThemeToggle />
+
           <Link
             href="/liked"
-            className="hidden md:flex items-center gap-2 rounded-full bg-[#242424] hover:bg-[#2a2a2a] px-3.5 py-1.5 text-xs font-semibold text-white transition-colors border border-transparent hover:border-white/10"
+            className="hidden md:flex items-center gap-2 rounded-full bg-[var(--bg-surface)] shadow-raised-sm active:shadow-sunken-sm px-3.5 py-1.5 text-xs font-semibold text-[var(--text-primary)] transition-all"
           >
-            <Heart className="h-3.5 w-3.5 text-rose-500 fill-rose-500" />
+            <Heart className="h-3.5 w-3.5 text-[#E07A5F] fill-[#E07A5F]" />
             <span>Liked ({likedTrackIds.length})</span>
           </Link>
-          <div className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-[#282828] text-white font-bold text-xs shadow-inner">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--bg-surface)] shadow-raised-sm text-[var(--text-primary)] font-bold text-xs">
             B
           </div>
         </div>
@@ -266,8 +269,8 @@ function HomeContent() {
       <div className="flex-1 px-3.5 sm:px-6 py-4 sm:py-6 space-y-8 sm:space-y-10">
         {/* Loading Spinner */}
         {isLoading && (
-          <div className="flex h-72 flex-col items-center justify-center gap-3 text-[#B3B3B3]">
-            <Loader2 className="h-8 w-8 animate-spin text-[#1DB954]" />
+          <div className="flex h-72 flex-col items-center justify-center gap-3 text-[var(--text-secondary)]">
+            <Loader2 className="h-8 w-8 animate-spin text-[var(--text-primary)]" />
             <p className="text-sm">Loading Discover feed...</p>
           </div>
         )}
@@ -276,31 +279,31 @@ function HomeContent() {
           <section className="space-y-8 sm:space-y-10 animate-in fade-in duration-300">
             {/* Dynamic Greeting & Quick 6-Card Grid */}
             <div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] tracking-tight">
                 {getGreeting()}
               </h1>
 
-              {/* Spotify 2x3 Quick Tiles Grid */}
-              <div className="mt-3 sm:mt-4 grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
+              {/* Neomorphic 2x3 Quick Tiles Grid */}
+              <div className="mt-3 sm:mt-4 grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {/* 1. Liked Songs Tile */}
                 <Link
                   href="/liked"
-                  className="group relative flex items-center rounded-lg overflow-hidden bg-white/[0.04] hover:bg-white/[0.09] transition-all border border-white/5 hover:border-white/15 shadow-sm cursor-pointer min-w-0"
+                  className="group relative flex items-center rounded-2xl overflow-hidden bg-[var(--bg-surface)] shadow-raised-sm hover:shadow-raised active:shadow-sunken-sm transition-all p-1.5 sm:p-2 cursor-pointer min-w-0"
                 >
-                  <div className="flex h-12 w-12 sm:h-16 sm:w-16 shrink-0 items-center justify-center bg-gradient-to-br from-indigo-600 via-purple-600 to-rose-400 text-white shadow-md">
-                    <Heart className="h-5 w-5 sm:h-7 sm:w-7 fill-white" />
+                  <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-xl bg-[var(--bg-surface)] shadow-sunken-sm text-[#E07A5F]">
+                    <Heart className="h-5 w-5 sm:h-6 sm:w-6 fill-[#E07A5F]" />
                   </div>
-                  <div className="px-2.5 sm:px-4 flex-1 min-w-0 truncate">
-                    <span className="font-bold text-xs sm:text-sm text-white block truncate">
+                  <div className="px-2.5 sm:px-3 flex-1 min-w-0 truncate">
+                    <span className="font-bold text-xs sm:text-sm text-[var(--text-primary)] block truncate">
                       Liked Songs
                     </span>
-                    <span className="text-[10px] sm:text-xs text-[#B3B3B3] block truncate mt-0.5">
+                    <span className="text-[10px] sm:text-xs text-[var(--text-secondary)] block truncate mt-0.5">
                       {likedTracks.length} song{likedTracks.length === 1 ? "" : "s"}
                     </span>
                   </div>
-                  <div className="ml-auto mr-2 sm:mr-4 opacity-0 group-hover:opacity-100 transition-opacity hidden sm:block">
-                    <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-[#1DB954] text-black shadow-lg">
-                      <Play className="h-4 w-4 fill-black ml-0.5" />
+                  <div className="ml-auto mr-2 opacity-0 group-hover:opacity-100 transition-opacity hidden sm:block">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--bg-surface)] shadow-raised text-[var(--text-primary)]">
+                      <Play className="h-4 w-4 fill-current ml-0.5" />
                     </div>
                   </div>
                 </Link>
@@ -314,9 +317,9 @@ function HomeContent() {
                     <div
                       key={track.id}
                       onClick={() => handleTrackClick(track)}
-                      className="group relative flex items-center rounded-lg overflow-hidden bg-white/[0.04] hover:bg-white/[0.09] transition-all border border-white/5 hover:border-white/15 shadow-sm cursor-pointer min-w-0"
+                      className="group relative flex items-center rounded-2xl overflow-hidden bg-[var(--bg-surface)] shadow-raised-sm hover:shadow-raised active:shadow-sunken-sm transition-all p-1.5 sm:p-2 cursor-pointer min-w-0"
                     >
-                      <div className="relative h-12 w-12 sm:h-16 sm:w-16 shrink-0 bg-[#181818]">
+                      <div className="relative h-12 w-12 sm:h-14 sm:w-14 shrink-0 rounded-xl overflow-hidden bg-[var(--bg-surface)] shadow-sunken-sm">
                         {track.cover_url ? (
                           <Image
                             src={track.cover_url}
@@ -326,16 +329,16 @@ function HomeContent() {
                             className="object-cover"
                           />
                         ) : (
-                          <div className="flex h-full w-full items-center justify-center text-[#B3B3B3]">
+                          <div className="flex h-full w-full items-center justify-center text-[var(--text-secondary)]">
                             <Music2 className="h-5 w-5 sm:h-6 sm:w-6" />
                           </div>
                         )}
                       </div>
-                      <div className="px-2.5 sm:px-4 flex-1 min-w-0 truncate">
-                        <span className="font-bold text-xs sm:text-sm text-white block truncate">
+                      <div className="px-2.5 sm:px-3 flex-1 min-w-0 truncate">
+                        <span className="font-bold text-xs sm:text-sm text-[var(--text-primary)] block truncate">
                           {track.title}
                         </span>
-                        <span className="text-[10px] sm:text-xs text-[#B3B3B3] block truncate mt-0.5">
+                        <span className="text-[10px] sm:text-xs text-[var(--text-secondary)] block truncate mt-0.5">
                           {track.artist}
                         </span>
                       </div>
@@ -345,16 +348,16 @@ function HomeContent() {
                           handleTrackClick(track);
                         }}
                         aria-label={isPlayingCurrent ? `Pause ${track.title}` : `Play ${track.title}`}
-                        className={`mr-2 sm:mr-4 flex h-8 w-8 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full bg-[#1DB954] text-black shadow-lg transition-all hover:scale-105 active:scale-95 cursor-pointer ${
+                        className={`mr-2 flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-full bg-[var(--bg-surface)] text-[var(--text-primary)] transition-all cursor-pointer ${
                           isPlayingCurrent
-                            ? "opacity-100"
-                            : "opacity-0 group-hover:opacity-100 hidden sm:flex"
+                            ? "shadow-sunken opacity-100"
+                            : "shadow-raised opacity-0 group-hover:opacity-100 hover:scale-105 hidden sm:flex"
                         }`}
                       >
                         {isPlayingCurrent ? (
-                          <Pause className="h-4 w-4 fill-black" />
+                          <Pause className="h-4 w-4 fill-current" />
                         ) : (
-                          <Play className="h-4 w-4 fill-black ml-0.5" />
+                          <Play className="h-4 w-4 fill-current ml-0.5" />
                         )}
                       </button>
                     </div>
@@ -395,24 +398,24 @@ function HomeContent() {
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="flex items-center gap-2">
-                      <Sparkles className="h-5 w-5 text-purple-400" />
-                      <h2 className="text-2xl font-bold text-white tracking-tight hover:underline cursor-pointer">
+                      <Sparkles className="h-5 w-5 text-[#E07A5F]" />
+                      <h2 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight hover:underline cursor-pointer">
                         Made For You
                       </h2>
                     </div>
-                    <p className="text-xs text-[#B3B3B3] mt-0.5">
+                    <p className="text-xs text-[var(--text-secondary)] mt-0.5">
                       Personalized recommendations based on your listening habits
                     </p>
                   </div>
                   <button
                     onClick={() => setQueue(madeForYou, 0)}
-                    className="text-xs font-bold text-[#B3B3B3] hover:text-white uppercase tracking-wider px-3 py-1.5 rounded-full hover:bg-white/10 transition-colors cursor-pointer"
+                    className="text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] uppercase tracking-wider px-3.5 py-1.5 rounded-full bg-[var(--bg-surface)] shadow-raised-sm active:shadow-sunken-sm transition-all cursor-pointer"
                   >
                     Play All
                   </button>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-5">
                   {madeForYou.map((track) => (
                     <TrackCard
                       key={`made-for-you-${track.id}`}

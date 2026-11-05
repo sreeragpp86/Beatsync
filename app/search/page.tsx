@@ -27,6 +27,7 @@ import { useAudioStore } from "@/stores/useAudioStore";
 import { useLikesStore } from "@/stores/useLikesStore";
 import { TrackCard } from "@/components/TrackCard";
 import { LikeButton } from "@/components/LikeButton";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 interface GenreMood {
   id: string;
@@ -236,30 +237,30 @@ function SearchHubContent() {
 
   return (
     <div className="flex flex-col min-h-full">
-      {/* Sticky Top Bar: Navigation Arrows + Search Input + Liked Counter */}
-      <header className="sticky top-0 z-30 flex items-center justify-between px-3.5 py-2.5 sm:px-6 sm:py-4 bg-[#0c0c16]/95 backdrop-blur-xl border-b border-white/10 select-none">
+      {/* Sticky Top Bar: Navigation Arrows + Search Input + Theme Toggle + Liked Counter */}
+      <header className="sticky top-0 z-30 flex items-center justify-between px-3.5 py-3 sm:px-6 sm:py-4 bg-[var(--bg-surface)]/90 backdrop-blur-md shadow-raised-sm sm:rounded-b-2xl select-none">
         <div className="flex items-center gap-2.5 sm:gap-4 flex-1 max-w-2xl min-w-0">
           {/* Back / Forward Arrows */}
           <div className="hidden sm:flex items-center gap-2 shrink-0">
             <button
               onClick={() => router.back()}
               aria-label="Go back"
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-[#0a0a0a]/80 text-[#B3B3B3] hover:text-white transition-colors cursor-pointer"
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--bg-surface)] shadow-raised-sm active:shadow-sunken-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all cursor-pointer"
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
             <button
               onClick={() => router.forward()}
               aria-label="Go forward"
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-[#0a0a0a]/80 text-[#B3B3B3] hover:text-white transition-colors cursor-pointer"
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--bg-surface)] shadow-raised-sm active:shadow-sunken-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all cursor-pointer"
             >
               <ChevronRight className="h-5 w-5" />
             </button>
           </div>
 
-          {/* Sticky Search Input Bar (Autofocus, Debounce, Clear button) */}
-          <div className="relative flex items-center flex-1 max-w-md bg-[#242424] hover:bg-[#2a2a2a] focus-within:bg-[#2a2a2a] rounded-full px-3 sm:px-3.5 py-2 sm:py-2.5 border border-transparent focus-within:border-[#1DB954]/60 transition-all text-sm group min-w-0">
-            <Search className="h-4 sm:h-5 w-4 sm:w-5 text-[#B3B3B3] shrink-0 mr-2 sm:mr-2.5 group-hover:text-white group-focus-within:text-[#1DB954] transition-colors" />
+          {/* Sticky Search Input Bar - Recessed Trench (Autofocus, Debounce, Clear button) */}
+          <div className="relative flex items-center flex-1 max-w-md bg-[var(--bg-surface)] shadow-sunken rounded-full px-4 py-2 sm:py-2.5 transition-all text-sm group min-w-0">
+            <Search className="h-4 sm:h-5 w-4 sm:w-5 text-[var(--text-secondary)] shrink-0 mr-2 sm:mr-2.5 group-hover:text-[var(--text-primary)] transition-colors" />
             <input
               ref={searchInputRef}
               type="text"
@@ -267,16 +268,16 @@ function SearchHubContent() {
               onChange={handleInputChange}
               placeholder="What do you want to play?"
               autoFocus
-              className="bg-transparent text-white placeholder-[#757575] outline-none w-full text-xs sm:text-sm font-medium"
+              className="bg-transparent text-[var(--text-primary)] placeholder-[var(--text-secondary)] outline-none w-full text-xs sm:text-sm font-medium"
             />
             {isSearching && (
-              <Loader2 className="h-4 w-4 animate-spin text-[#1DB954] shrink-0 ml-1 sm:ml-2" />
+              <Loader2 className="h-4 w-4 animate-spin text-[var(--text-primary)] shrink-0 ml-1 sm:ml-2" />
             )}
             {searchQuery && !isSearching && (
               <button
                 onClick={handleClearSearch}
                 aria-label="Clear search"
-                className="text-[#B3B3B3] hover:text-white p-0.5 ml-1 sm:ml-2 cursor-pointer transition-colors"
+                className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-0.5 ml-1 sm:ml-2 cursor-pointer transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -284,16 +285,18 @@ function SearchHubContent() {
           </div>
         </div>
 
-        {/* Right side status / profile pill */}
+        {/* Right side: Theme Toggle + Liked Pill */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0 ml-2">
+          <ThemeToggle />
+
           <Link
             href="/liked"
-            className="hidden md:flex items-center gap-2 rounded-full bg-[#242424] hover:bg-[#2a2a2a] px-3.5 py-1.5 text-xs font-semibold text-white transition-colors border border-transparent hover:border-white/10"
+            className="hidden md:flex items-center gap-2 rounded-full bg-[var(--bg-surface)] shadow-raised-sm active:shadow-sunken-sm px-3.5 py-1.5 text-xs font-semibold text-[var(--text-primary)] transition-all"
           >
-            <Heart className="h-3.5 w-3.5 text-rose-500 fill-rose-500" />
+            <Heart className="h-3.5 w-3.5 text-[#E07A5F] fill-[#E07A5F]" />
             <span>Liked ({likedTrackIds.length})</span>
           </Link>
-          <div className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-[#282828] text-white font-bold text-xs shadow-inner">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--bg-surface)] shadow-raised-sm text-[var(--text-primary)] font-bold text-xs">
             B
           </div>
         </div>
@@ -307,33 +310,33 @@ function SearchHubContent() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               {/* Left Top Result Skeleton */}
               <div className="lg:col-span-5 flex flex-col">
-                <div className="h-7 w-32 bg-white/10 rounded mb-4" />
-                <div className="h-64 rounded-xl bg-white/5 border border-white/5 p-6 flex flex-col justify-between">
-                  <div className="h-24 w-24 rounded-lg bg-white/10" />
+                <div className="h-7 w-32 bg-[var(--text-secondary)]/15 rounded-lg mb-4" />
+                <div className="h-64 rounded-2xl bg-[var(--bg-surface)] shadow-sunken-sm p-6 flex flex-col justify-between">
+                  <div className="h-24 w-24 rounded-xl bg-[var(--text-secondary)]/15" />
                   <div className="space-y-2 mt-4">
-                    <div className="h-6 w-3/4 bg-white/10 rounded" />
-                    <div className="h-4 w-1/2 bg-white/10 rounded" />
+                    <div className="h-6 w-3/4 bg-[var(--text-secondary)]/15 rounded-lg" />
+                    <div className="h-4 w-1/2 bg-[var(--text-secondary)]/15 rounded-lg" />
                   </div>
                 </div>
               </div>
 
               {/* Right 4 Songs Skeleton */}
               <div className="lg:col-span-7 flex flex-col">
-                <div className="h-7 w-24 bg-white/10 rounded mb-4" />
+                <div className="h-7 w-24 bg-[var(--text-secondary)]/15 rounded-lg mb-4" />
                 <div className="space-y-3">
                   {[1, 2, 3, 4].map((i) => (
                     <div
                       key={i}
-                      className="flex items-center justify-between p-2.5 rounded-lg bg-white/5 border border-white/5"
+                      className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-surface)] shadow-sunken-sm"
                     >
                       <div className="flex items-center gap-3.5 flex-1">
-                        <div className="h-11 w-11 rounded-md bg-white/10 shrink-0" />
+                        <div className="h-11 w-11 rounded-lg bg-[var(--text-secondary)]/15 shrink-0" />
                         <div className="space-y-2 flex-1 max-w-xs">
-                          <div className="h-4 w-full bg-white/10 rounded" />
-                          <div className="h-3 w-2/3 bg-white/10 rounded" />
+                          <div className="h-4 w-full bg-[var(--text-secondary)]/15 rounded" />
+                          <div className="h-3 w-2/3 bg-[var(--text-secondary)]/15 rounded" />
                         </div>
                       </div>
-                      <div className="h-4 w-12 bg-white/10 rounded" />
+                      <div className="h-4 w-12 bg-[var(--text-secondary)]/15 rounded" />
                     </div>
                   ))}
                 </div>
@@ -342,16 +345,16 @@ function SearchHubContent() {
 
             {/* Grid Skeleton */}
             <div className="space-y-4 pt-4">
-              <div className="h-7 w-48 bg-white/10 rounded" />
+              <div className="h-7 w-48 bg-[var(--text-secondary)]/15 rounded-lg" />
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                 {[1, 2, 3, 4, 5, 6].map((i) => (
                   <div
                     key={i}
-                    className="p-4 rounded-xl bg-white/5 border border-white/5 space-y-3"
+                    className="p-4 rounded-2xl bg-[var(--bg-surface)] shadow-sunken-sm space-y-3"
                   >
-                    <div className="aspect-square w-full rounded-lg bg-white/10" />
-                    <div className="h-4 w-3/4 bg-white/10 rounded" />
-                    <div className="h-3 w-1/2 bg-white/10 rounded" />
+                    <div className="aspect-square w-full rounded-xl bg-[var(--text-secondary)]/15" />
+                    <div className="h-4 w-3/4 bg-[var(--text-secondary)]/15 rounded" />
+                    <div className="h-3 w-1/2 bg-[var(--text-secondary)]/15 rounded" />
                   </div>
                 ))}
               </div>
@@ -363,31 +366,31 @@ function SearchHubContent() {
         {!isSearching && searchQuery.trim() === "" && (
           <section className="space-y-6 animate-in fade-in duration-300">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] tracking-tight">
                 Browse all
               </h1>
-              <p className="text-sm text-[#B3B3B3] mt-1">
+              <p className="text-sm text-[var(--text-secondary)] mt-1">
                 Explore popular genres, moods, and curated radio streams
               </p>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 sm:gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-5">
               {GENRE_MOODS.map((genre) => {
                 const Icon = genre.icon;
                 return (
                   <button
                     key={genre.id}
                     onClick={() => handleSelectGenre(genre)}
-                    className={`group relative overflow-hidden rounded-xl p-3.5 sm:p-5 aspect-[1.3/1] bg-gradient-to-br ${genre.gradient} text-left transition-all duration-300 hover:scale-[1.03] hover:shadow-2xl shadow-lg border border-white/10 cursor-pointer flex flex-col justify-between`}
+                    className="group relative overflow-hidden rounded-2xl p-4 sm:p-5 aspect-[1.3/1] bg-[var(--bg-surface)] shadow-raised-sm hover:shadow-raised active:shadow-sunken-sm text-left transition-all duration-200 cursor-pointer flex flex-col justify-between"
                   >
-                    <span className="font-extrabold text-base sm:text-xl text-white tracking-tight drop-shadow-sm line-clamp-2">
+                    <span className="font-extrabold text-base sm:text-xl text-[var(--text-primary)] tracking-tight line-clamp-2">
                       {genre.name}
                     </span>
 
-                    {/* Decorative Icon Badge with tilt */}
-                    <div className="self-end translate-x-1 sm:translate-x-2 translate-y-1 sm:translate-y-2 opacity-80 group-hover:opacity-100 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300">
-                      <div className="flex h-10 w-10 sm:h-14 sm:w-14 items-center justify-center rounded-lg sm:rounded-xl bg-black/25 backdrop-blur-sm shadow-md">
-                        <Icon className="h-5 w-5 sm:h-7 sm:w-7 text-white" />
+                    {/* Tactile Icon Container */}
+                    <div className="self-end opacity-85 group-hover:opacity-100 group-hover:scale-110 transition-all duration-200">
+                      <div className="flex h-11 w-11 sm:h-13 sm:w-13 items-center justify-center rounded-xl bg-[var(--bg-surface)] shadow-sunken-sm text-[var(--text-secondary)] group-hover:text-[#E07A5F] transition-colors">
+                        <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
                       </div>
                     </div>
                   </button>
@@ -403,16 +406,16 @@ function SearchHubContent() {
             {tracks.length === 0 && hasSearched ? (
               /* No Search Results State */
               <div className="flex flex-col items-center justify-center py-20 text-center">
-                <Music2 className="h-14 w-14 text-[#757575] mb-4" />
-                <h3 className="text-2xl font-bold text-white">
+                <Music2 className="h-14 w-14 text-[var(--text-secondary)] mb-4" />
+                <h3 className="text-2xl font-bold text-[var(--text-primary)]">
                   No results found for &ldquo;{searchQuery}&rdquo;
                 </h3>
-                <p className="text-sm text-[#B3B3B3] mt-2 max-w-md">
+                <p className="text-sm text-[var(--text-secondary)] mt-2 max-w-md">
                   Please make sure your words are spelled correctly, or try searching with different keywords, track titles, or artist names.
                 </p>
                 <button
                   onClick={handleClearSearch}
-                  className="mt-6 rounded-full bg-white text-black font-bold px-6 py-2.5 text-sm hover:scale-105 active:scale-95 transition-transform cursor-pointer shadow-lg"
+                  className="mt-6 rounded-full bg-[var(--bg-surface)] text-[var(--text-primary)] font-bold px-6 py-2.5 text-sm shadow-raised-sm active:shadow-sunken-sm hover:scale-105 transition-all cursor-pointer"
                 >
                   Clear Search
                 </button>
@@ -424,17 +427,17 @@ function SearchHubContent() {
                   {/* Left Column: Top Result */}
                   {topResult && (
                     <div className="lg:col-span-5 flex flex-col">
-                      <h2 className="text-2xl font-bold text-white mb-4">
+                      <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-4">
                         Top result
                       </h2>
 
                       <div
                         onClick={() => handleTrackClick(topResult)}
-                        className="group relative flex-1 flex flex-col justify-between rounded-xl bg-[#181818] hover:bg-[#282828] p-6 cursor-pointer transition-all duration-300 shadow-md hover:shadow-2xl border border-white/5 hover:border-white/10"
+                        className="group relative flex-1 flex flex-col justify-between rounded-2xl bg-[var(--bg-surface)] shadow-raised-sm hover:shadow-raised p-6 cursor-pointer transition-all duration-200"
                       >
                         <div>
                           {/* Top Result Artwork */}
-                          <div className="relative h-28 w-28 overflow-hidden rounded-lg bg-[#282828] shadow-xl">
+                          <div className="relative h-28 w-28 overflow-hidden rounded-xl bg-[var(--bg-surface)] shadow-sunken-sm">
                             {topResult.cover_url ? (
                               <Image
                                 src={topResult.cover_url}
@@ -444,29 +447,29 @@ function SearchHubContent() {
                                 className="object-cover"
                               />
                             ) : (
-                              <div className="flex h-full w-full items-center justify-center text-[#B3B3B3]">
+                              <div className="flex h-full w-full items-center justify-center text-[var(--text-secondary)]">
                                 <Music2 className="h-10 w-10" />
                               </div>
                             )}
                           </div>
 
                           {/* Title & Artist */}
-                          <h3 className="text-2xl sm:text-3xl font-extrabold text-white mt-5 truncate">
+                          <h3 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] mt-5 truncate">
                             {topResult.title}
                           </h3>
-                          <p className="text-sm text-[#B3B3B3] mt-2 truncate">
-                            <span className="text-white font-semibold hover:underline">
+                          <p className="text-sm text-[var(--text-secondary)] mt-2 truncate">
+                            <span className="text-[var(--text-primary)] font-semibold hover:underline">
                               {topResult.artist}
                             </span>
                             {topResult.album && ` • ${topResult.album}`}
                           </p>
 
-                          <span className="inline-block rounded-full bg-white/10 px-3.5 py-1 text-xs font-bold text-white mt-5 tracking-wide uppercase">
+                          <span className="inline-block rounded-full bg-[var(--bg-surface)] shadow-sunken-sm px-3.5 py-1 text-xs font-semibold text-[var(--text-secondary)] mt-5 tracking-wide uppercase">
                             Song
                           </span>
                         </div>
 
-                        {/* Floating Emerald Play Button */}
+                        {/* Tactile Neomorphic Play Button */}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -477,16 +480,16 @@ function SearchHubContent() {
                               ? "Pause"
                               : "Play"
                           }
-                          className={`absolute bottom-6 right-6 flex h-13 w-13 items-center justify-center rounded-full bg-[#1DB954] text-black shadow-2xl transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer ${
+                          className={`absolute bottom-6 right-6 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--bg-surface)] text-[var(--text-primary)] transition-all duration-200 cursor-pointer ${
                             currentTrack?.id === topResult.id && isPlaying
-                              ? "opacity-100 translate-y-0"
-                              : "opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0"
+                              ? "shadow-sunken opacity-100 translate-y-0"
+                              : "shadow-raised opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 hover:scale-105 active:shadow-sunken"
                           }`}
                         >
                           {currentTrack?.id === topResult.id && isPlaying ? (
-                            <Pause className="h-6 w-6 fill-black" />
+                            <Pause className="h-6 w-6 fill-current" />
                           ) : (
-                            <Play className="h-6 w-6 fill-black ml-0.5" />
+                            <Play className="h-6 w-6 fill-current ml-0.5" />
                           )}
                         </button>
                       </div>
@@ -495,11 +498,11 @@ function SearchHubContent() {
 
                   {/* Right Column: 4 Songs List */}
                   <div className="lg:col-span-7 flex flex-col">
-                    <h2 className="text-2xl font-bold text-white mb-4">
+                    <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-4">
                       Songs
                     </h2>
 
-                    <div className="flex flex-col gap-1.5">
+                    <div className="flex flex-col gap-2">
                       {topSideSongs.map((track) => {
                         const isActive = currentTrack?.id === track.id;
                         const isTrackPlaying = isActive && isPlaying;
@@ -508,15 +511,15 @@ function SearchHubContent() {
                           <div
                             key={track.id}
                             onClick={() => handleTrackClick(track)}
-                            className={`group flex items-center justify-between p-2.5 rounded-lg cursor-pointer transition-colors ${
+                            className={`group flex items-center justify-between p-2.5 rounded-xl cursor-pointer transition-all ${
                               isActive
-                                ? "bg-[#282828] text-white"
-                                : "hover:bg-[#282828]/70 text-[#B3B3B3] hover:text-white"
+                                ? "shadow-raised-sm bg-[var(--bg-surface)] text-[var(--text-primary)]"
+                                : "hover:shadow-raised-sm active:shadow-sunken-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                             }`}
                           >
                             <div className="flex items-center gap-3.5 min-w-0 flex-1">
                               {/* Artwork with hover play icon */}
-                              <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md bg-[#282828] shadow-sm">
+                              <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-[var(--bg-surface)] shadow-sunken-sm">
                                 {track.cover_url ? (
                                   <Image
                                     src={track.cover_url}
@@ -526,21 +529,21 @@ function SearchHubContent() {
                                     className="object-cover"
                                   />
                                 ) : (
-                                  <div className="flex h-full w-full items-center justify-center text-[#B3B3B3]">
+                                  <div className="flex h-full w-full items-center justify-center text-[var(--text-secondary)]">
                                     <Music2 className="h-5 w-5" />
                                   </div>
                                 )}
                                 <div
-                                  className={`absolute inset-0 flex items-center justify-center bg-black/60 transition-opacity ${
+                                  className={`absolute inset-0 flex items-center justify-center bg-[var(--bg-surface)]/70 transition-opacity ${
                                     isTrackPlaying
                                       ? "opacity-100"
                                       : "opacity-0 group-hover:opacity-100"
                                   }`}
                                 >
                                   {isTrackPlaying ? (
-                                    <Pause className="h-5 w-5 text-white fill-white" />
+                                    <Pause className="h-5 w-5 text-[var(--text-primary)] fill-current" />
                                   ) : (
-                                    <Play className="h-5 w-5 text-white fill-white ml-0.5" />
+                                    <Play className="h-5 w-5 text-[var(--text-primary)] fill-current ml-0.5" />
                                   )}
                                 </div>
                               </div>
@@ -549,12 +552,12 @@ function SearchHubContent() {
                               <div className="min-w-0 flex-1 truncate">
                                 <p
                                   className={`text-sm font-semibold truncate ${
-                                    isActive ? "text-[#1DB954]" : "text-white"
+                                    isActive ? "text-[var(--text-primary)] font-bold" : "text-[var(--text-primary)]"
                                   }`}
                                 >
                                   {track.title}
                                 </p>
-                                <p className="text-xs text-[#B3B3B3] truncate mt-0.5">
+                                <p className="text-xs text-[var(--text-secondary)] truncate mt-0.5">
                                   {track.artist}
                                 </p>
                               </div>
@@ -563,7 +566,7 @@ function SearchHubContent() {
                             {/* Duration & Like Button */}
                             <div className="flex items-center gap-3 shrink-0 pr-2">
                               <LikeButton track={track} trackId={track.id} size={17} />
-                              <span className="text-xs font-mono text-[#B3B3B3] tabular-nums">
+                              <span className="text-xs font-mono text-[var(--text-secondary)] tabular-nums">
                                 {formatTime(track.duration)}
                               </span>
                             </div>
@@ -577,10 +580,10 @@ function SearchHubContent() {
                 {/* Bottom Section: Remaining Matching Songs Grid */}
                 {remainingMatchingSongs.length > 0 && (
                   <div className="pt-4">
-                    <h2 className="text-2xl font-bold text-white mb-4">
+                    <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-4">
                       Featuring & More Tracks
                     </h2>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-5">
                       {remainingMatchingSongs.map((track) => (
                         <TrackCard
                           key={track.id}
