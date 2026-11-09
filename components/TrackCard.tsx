@@ -1,9 +1,10 @@
 "use client";
 
 import Image from "next/image";
-import { Play, Pause, Music2 } from "lucide-react";
+import { Play, Pause, Music2, Plus } from "lucide-react";
 import { Track } from "@/types/track";
 import { useAudioStore } from "@/stores/useAudioStore";
+import { useDynamicQueueStore } from "@/stores/useDynamicQueueStore";
 import { LikeButton } from "@/components/LikeButton";
 
 export interface TrackCardProps {
@@ -94,7 +95,18 @@ export function TrackCard({ track, allTracks = [], onPlay }: TrackCardProps) {
               {track.artist}
             </p>
           </div>
-          <div className="shrink-0 -mr-1 -mt-0.5">
+          <div className="shrink-0 -mr-1 -mt-0.5 flex items-center gap-1">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                useDynamicQueueStore.getState().addToUserQueue(track);
+              }}
+              aria-label={`Add ${track.title} to queue`}
+              title="Add to queue"
+              className="p-1 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:shadow-raised-sm active:shadow-sunken-sm transition-all cursor-pointer opacity-0 group-hover:opacity-100"
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </button>
             <LikeButton track={track} trackId={track.id} size={15} />
           </div>
         </div>

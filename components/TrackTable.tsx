@@ -1,9 +1,10 @@
 "use client";
 
 import Image from "next/image";
-import { Play, Pause, Clock, Music2 } from "lucide-react";
+import { Play, Pause, Clock, Music2, Plus } from "lucide-react";
 import { Track } from "@/types/track";
 import { useAudioStore } from "@/stores/useAudioStore";
+import { useDynamicQueueStore } from "@/stores/useDynamicQueueStore";
 import { LikeButton } from "@/components/LikeButton";
 
 function formatTime(seconds: number): string {
@@ -121,8 +122,19 @@ export function TrackTable({
                 {track.album || "—"}
               </div>
 
-              {/* Like Button & Duration */}
-              <div className="col-span-4 sm:col-span-2 flex items-center justify-end gap-2.5 sm:gap-3 text-right pr-1 sm:pr-2">
+              {/* Like Button, Add to Queue & Duration */}
+              <div className="col-span-4 sm:col-span-2 flex items-center justify-end gap-2 sm:gap-2.5 text-right pr-1 sm:pr-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    useDynamicQueueStore.getState().addToUserQueue(track);
+                  }}
+                  title="Add to queue"
+                  className="p-1 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:shadow-raised-sm active:shadow-sunken-sm transition-all cursor-pointer opacity-0 group-hover:opacity-100"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </button>
+
                 <LikeButton track={track} trackId={track.id} size={15} />
 
                 <span className="text-xs font-mono tabular-nums text-[var(--text-secondary)]">

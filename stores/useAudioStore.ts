@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { Track } from '@/types/track';
 import { toast } from 'sonner';
 import { ytPlayerService } from '@/lib/youtube-player';
+import { useDynamicQueueStore } from '@/stores/useDynamicQueueStore';
 
 export interface AudioState {
   // State
@@ -27,6 +28,7 @@ export interface AudioState {
   toggleNowPlaying: () => void;
   toggleShuffle: () => void;
   toggleRepeat: () => void;
+  addToQueue: (track: Track, atStart?: boolean) => void;
   setQueue: (tracks: Track[], startIndex?: number) => void;
   playTrack: (track: Track) => Promise<void>;
   playQueueIndex: (index: number) => Promise<void>;
@@ -529,6 +531,10 @@ export const useAudioStore = create<AudioState>((set, get) => {
       }
     },
 
+    addToQueue: (track: Track, atStart = false) => {
+      useDynamicQueueStore.getState().addToUserQueue(track, atStart);
+    },
+
     setQueue: (tracks: Track[], startIndex = 0) => {
       if (!tracks || tracks.length === 0) {
         ytPlayerService.stop();
@@ -595,6 +601,12 @@ export const useAudioStore = create<AudioState>((set, get) => {
 
       startTrackPlayback(track, set);
 
+      // Record play in dynamic queue session history and replenish pool if buffer is low
+      useDynamicQueueStore.getState().recordPlay(track);
+      if (useDynamicQueueStore.getState().dynamicPool.length < 3) {
+        useDynamicQueueStore.getState().replenishPool(track);
+      }
+
       // Background task: fetch 10-15 similar songs and append into queue (Song Radio)
       get().fetchAutoQueue(track);
     },
@@ -620,6 +632,12 @@ export const useAudioStore = create<AudioState>((set, get) => {
       recordRecentlyPlayed(targetTrack);
 
       startTrackPlayback(targetTrack, set);
+
+      // Record play in dynamic queue session history and replenish pool if buffer is low
+      useDynamicQueueStore.getState().recordPlay(targetTrack);
+      if (useDynamicQueueStore.getState().dynamicPool.length < 3) {
+        useDynamicQueueStore.getState().replenishPool(targetTrack);
+      }
 
       // If queue has fewer than 2 songs left, automatically fetch and append more related tracks
       if (index >= queue.length - 2) {
@@ -657,6 +675,10 @@ export const useAudioStore = create<AudioState>((set, get) => {
       registerMediaSessionHandlers(get);
 
       startTrackPlayback(selectedTrack, set);
+
+      // Record play and seed the dynamic pool with selected track's vibe
+      useDynamicQueueStore.getState().recordPlay(selectedTrack);
+      useDynamicQueueStore.getState().replenishPool(selectedTrack);
 
       // Enrich queue with Song Radio related tracks
       get().fetchAutoQueue(selectedTrack);
@@ -856,10 +878,16 @@ export const useAudioStore = create<AudioState>((set, get) => {
     },
 
     playNext: () => {
-      const { queue, queueIndex, currentTrack, isShuffle, repeatMode } = get();
-      if (!queue || queue.length === 0) return;
+      const { queue, queueIndex, currentTrack, currentTime, isShuffle, repeatMode } = get();
 
-      // Repeat One: restart current track
+      // 1. Record skip if skipped under 20s
+      if (currentTrack) {
+        useDynamicQueueStore
+          .getState()
+          .recordSkip(currentTrack.id, currentTime, currentTrack.artist);
+      }
+
+      // 2. Repeat One: restart current track
       if (repeatMode === 'one' && currentTrack) {
         get().seek(0);
         if (ytPlayerService.isYouTubeTrack(currentTrack)) {
@@ -875,7 +903,16 @@ export const useAudioStore = create<AudioState>((set, get) => {
         return;
       }
 
-      // Shuffle: select random track from queue (other than current)
+      // 3. Dynamic Queue Tier 1 (User Queue) & Tier 2 (Dynamic Pool) takes priority
+      const nextDynamic = useDynamicQueueStore.getState().getNextTrack();
+      if (nextDynamic) {
+        get().playTrack(nextDynamic);
+        return;
+      }
+
+      if (!queue || queue.length === 0) return;
+
+      // 4. Shuffle: select random track from queue (other than current)
       if (isShuffle && queue.length > 1) {
         const remainingIndices = queue
           .map((_, i) => i)
@@ -903,12 +940,19 @@ export const useAudioStore = create<AudioState>((set, get) => {
         // Reached end of queue before background fetch resolved: wait for related tracks or loop
         const referenceTrack = currentTrack || queue[queue.length - 1];
         if (referenceTrack) {
-          get().fetchAutoQueue(referenceTrack).then(() => {
-            const refreshedQueue = get().queue;
-            if (refreshedQueue.length > queueIndex + 1) {
-              get().playQueueIndex(queueIndex + 1);
+          useDynamicQueueStore.getState().replenishPool(referenceTrack).then(() => {
+            const fallbackNext = useDynamicQueueStore.getState().getNextTrack();
+            if (fallbackNext) {
+              get().playTrack(fallbackNext);
             } else {
-              get().playQueueIndex(0);
+              get().fetchAutoQueue(referenceTrack).then(() => {
+                const refreshedQueue = get().queue;
+                if (refreshedQueue.length > queueIndex + 1) {
+                  get().playQueueIndex(queueIndex + 1);
+                } else {
+                  get().playQueueIndex(0);
+                }
+              });
             }
           });
         } else {

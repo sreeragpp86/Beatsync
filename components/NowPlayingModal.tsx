@@ -23,6 +23,7 @@ import {
   Disc3,
 } from "lucide-react";
 import { useAudioStore } from "@/stores/useAudioStore";
+import { useDynamicQueueStore } from "@/stores/useDynamicQueueStore";
 import { LikeButton } from "@/components/LikeButton";
 import { toast } from "sonner";
 
@@ -57,6 +58,8 @@ export function NowPlayingModal() {
     toggleRepeat,
     toggleQueue,
   } = useAudioStore();
+
+  const { userQueue, dynamicPool } = useDynamicQueueStore();
 
   const [activeTab, setActiveTab] = useState<"song" | "lyrics">("song");
   const [isDragging, setIsDragging] = useState(false);
@@ -176,7 +179,10 @@ export function NowPlayingModal() {
     }
   };
 
-  const nextTrack = queueIndex >= 0 && queueIndex < queue.length - 1 ? queue[queueIndex + 1] : null;
+  const nextTrack =
+    userQueue[0] ||
+    dynamicPool[0] ||
+    (queueIndex >= 0 && queueIndex < queue.length - 1 ? queue[queueIndex + 1] : null);
 
   return (
     <div

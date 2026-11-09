@@ -91,12 +91,43 @@ async function fetchRelatedFromInstance(
   return mapped.slice(0, 15);
 }
 
+function applyVibeFilter(tracks: Track[], vibe: string): Track[] {
+  if (!tracks || tracks.length === 0) return [];
+
+  if (vibe === "deep-cuts") {
+    // Deep cuts: prioritize secondary/less obvious recommendation nodes
+    if (tracks.length > 4) {
+      const secondary = tracks.slice(3);
+      const primary = tracks.slice(0, 3);
+      return [...secondary, ...primary];
+    }
+    return [...tracks].reverse();
+  }
+
+  if (vibe === "upbeat") {
+    // High energy: prioritize energetic titles, remixes, or punchy radio durations (2:30 - 4:00)
+    return [...tracks].sort((a, b) => {
+      const aUpbeat = /remix|dance|mix|club|edit|live|fast|beat|upbeat|party|energy/i.test(a.title);
+      const bUpbeat = /remix|dance|mix|club|edit|live|fast|beat|upbeat|party|energy/i.test(b.title);
+      if (aUpbeat && !bUpbeat) return -1;
+      if (!aUpbeat && bUpbeat) return 1;
+      const aDiff = Math.abs(a.duration - 200);
+      const bDiff = Math.abs(b.duration - 200);
+      return aDiff - bDiff;
+    });
+  }
+
+  // "balanced" and "familiar" keep the top algorithmic associations
+  return tracks;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id")?.trim();
     const artist = searchParams.get("artist")?.trim();
     const title = searchParams.get("title")?.trim();
+    const vibe = searchParams.get("vibe")?.trim() || "balanced";
 
     if (!id) {
       return NextResponse.json(
@@ -109,21 +140,29 @@ export async function GET(request: NextRequest) {
     const isMock = MOCK_TRACKS.some((t) => t.id === id);
     if (isMock) {
       const candidates = MOCK_TRACKS.filter((t) => t.id !== id);
-      return NextResponse.json({ tracks: candidates.slice(0, 15) }, { status: 200 });
+      const filtered = applyVibeFilter(candidates, vibe);
+      return NextResponse.json({ tracks: filtered.slice(0, 15) }, { status: 200 });
     }
 
     // 2. PRIMARY: Fetch real related YouTube tracks via Innertube
     try {
       const relatedTracks = await getRelatedYouTubeTracks(id, 15);
       if (relatedTracks.length > 0) {
-        return NextResponse.json({ tracks: relatedTracks }, { status: 200 });
+        const filtered = applyVibeFilter(relatedTracks, vibe);
+        return NextResponse.json({ tracks: filtered }, { status: 200 });
       }
     } catch (err) {
       console.warn(`[BeatSync Related API] Primary resolution failed for ${id}:`, err);
     }
 
     // 3. SECONDARY: Query Piped search instances in parallel
-    const searchQuery = artist || title || "popular music";
+    let searchQuery = artist || title || "popular music";
+    if (vibe === "upbeat") {
+      searchQuery = `${searchQuery} dance upbeat`;
+    } else if (vibe === "deep-cuts") {
+      searchQuery = `${searchQuery} album cut audio`;
+    }
+
     try {
       const results = await Promise.any(
         PIPED_RELATED_INSTANCES.map((instance) =>
@@ -131,7 +170,8 @@ export async function GET(request: NextRequest) {
         )
       );
       if (results && results.length > 0) {
-        return NextResponse.json({ tracks: results }, { status: 200 });
+        const filtered = applyVibeFilter(results, vibe);
+        return NextResponse.json({ tracks: filtered }, { status: 200 });
       }
     } catch {
       // Parallel fetch failed or timed out
@@ -139,8 +179,9 @@ export async function GET(request: NextRequest) {
 
     // 4. Fallback: Return diverse tracks from local catalog
     const localCandidates = MOCK_TRACKS.filter((t) => t.id !== id);
+    const filtered = applyVibeFilter(localCandidates, vibe);
     return NextResponse.json(
-      { tracks: localCandidates.slice(0, 15) },
+      { tracks: filtered.slice(0, 15) },
       { status: 200 }
     );
   } catch (error) {
