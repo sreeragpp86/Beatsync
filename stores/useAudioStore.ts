@@ -3,6 +3,7 @@ import { Track } from '@/types/track';
 import { toast } from 'sonner';
 import { ytPlayerService } from '@/lib/youtube-player';
 import { useDynamicQueueStore } from '@/stores/useDynamicQueueStore';
+import { isMusicTrack } from '@/lib/music-filter';
 
 export interface AudioState {
   // State
@@ -510,7 +511,9 @@ export const useAudioStore = create<AudioState>((set, get) => {
           if (relatedTracks.length > 0) {
             const { queue, queueIndex } = get();
             const existingIds = new Set(queue.map((t) => t.id));
-            const newTracks = relatedTracks.filter((t) => !existingIds.has(t.id));
+            const newTracks = relatedTracks.filter(
+              (t) => !existingIds.has(t.id) && isMusicTrack(t)
+            );
 
             if (newTracks.length > 0) {
               const insertPos = queueIndex >= 0 ? queueIndex + 1 : queue.length;
@@ -654,9 +657,9 @@ export const useAudioStore = create<AudioState>((set, get) => {
       consecutiveErrors = 0;
       retryAttemptedForTrackId = null;
 
-      // Filter initial candidates excluding selectedTrack
+      // Filter initial candidates excluding selectedTrack, ensuring music-only duration and format
       const candidates = (allAvailableTracks || []).filter(
-        (t) => t.id !== selectedTrack.id
+        (t) => t.id !== selectedTrack.id && isMusicTrack(t)
       );
 
       const initialQueue = [selectedTrack, ...candidates.slice(0, 15)];

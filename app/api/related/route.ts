@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { MOCK_TRACKS } from "@/lib/mock-tracks";
 import { Track } from "@/types/track";
 import { getRelatedYouTubeTracks } from "@/lib/youtube";
+import { isMusicTrack } from "@/lib/music-filter";
 
 // Reliable public Piped instances for related streams resolution fallback
 const PIPED_RELATED_INSTANCES = [
@@ -73,15 +74,27 @@ async function fetchRelatedFromInstance(
     const videoId = extractVideoId(item.url);
     if (!videoId || videoId === currentId) continue;
 
+    const duration =
+      typeof item.duration === "number" && item.duration > 0
+        ? item.duration
+        : 0;
+
+    // Filter out long-form videos (> 10 mins), shorts (< 45s), and non-music content
+    if (
+      !isMusicTrack({
+        title: item.title,
+        duration,
+      })
+    ) {
+      continue;
+    }
+
     mapped.push({
       id: videoId,
       title: item.title || "Unknown Title",
       artist: item.uploaderName || "Unknown Artist",
       album: "Song Radio",
-      duration:
-        typeof item.duration === "number" && item.duration > 0
-          ? item.duration
-          : 180,
+      duration,
       cover_url: getHighResCover(item.thumbnail, videoId),
       audio_url: `/api/stream?id=${encodeURIComponent(videoId)}`,
     });
@@ -94,19 +107,23 @@ async function fetchRelatedFromInstance(
 function applyVibeFilter(tracks: Track[], vibe: string): Track[] {
   if (!tracks || tracks.length === 0) return [];
 
+  // Guarantee all output tracks strictly comply with music track constraints
+  const musicOnlyTracks = tracks.filter((t) => isMusicTrack(t));
+  if (musicOnlyTracks.length === 0) return [];
+
   if (vibe === "deep-cuts") {
     // Deep cuts: prioritize secondary/less obvious recommendation nodes
-    if (tracks.length > 4) {
-      const secondary = tracks.slice(3);
-      const primary = tracks.slice(0, 3);
+    if (musicOnlyTracks.length > 4) {
+      const secondary = musicOnlyTracks.slice(3);
+      const primary = musicOnlyTracks.slice(0, 3);
       return [...secondary, ...primary];
     }
-    return [...tracks].reverse();
+    return [...musicOnlyTracks].reverse();
   }
 
   if (vibe === "upbeat") {
     // High energy: prioritize energetic titles, remixes, or punchy radio durations (2:30 - 4:00)
-    return [...tracks].sort((a, b) => {
+    return [...musicOnlyTracks].sort((a, b) => {
       const aUpbeat = /remix|dance|mix|club|edit|live|fast|beat|upbeat|party|energy/i.test(a.title);
       const bUpbeat = /remix|dance|mix|club|edit|live|fast|beat|upbeat|party|energy/i.test(b.title);
       if (aUpbeat && !bUpbeat) return -1;
@@ -118,7 +135,7 @@ function applyVibeFilter(tracks: Track[], vibe: string): Track[] {
   }
 
   // "balanced" and "familiar" keep the top algorithmic associations
-  return tracks;
+  return musicOnlyTracks;
 }
 
 export async function GET(request: NextRequest) {

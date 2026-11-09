@@ -1,6 +1,7 @@
 import dns from "node:dns";
 import { Ytdl } from "@distube/ytdl-core";
 import { Track } from "@/types/track";
+import { isMusicTrack } from "@/lib/music-filter";
 
 // Force IPv4 first in Node to avoid IPv6 resolution timeouts
 if (typeof dns.setDefaultResultOrder === "function") {
@@ -148,17 +149,31 @@ export async function searchYouTubeTracks(
 
     const tracks: Track[] = [];
     for (const item of results) {
-      if (!item.id || item.isLive) continue;
+      if (!item.id) continue;
+
+      const duration =
+        typeof item.lengthSeconds === "number" && item.lengthSeconds > 0
+          ? item.lengthSeconds
+          : 0;
+
+      // Filter out non-music, long-form content (> 10 mins), shorts (< 45s), livestreams
+      if (
+        !isMusicTrack({
+          title: item.title,
+          duration,
+          isLive: (item as unknown as { isLive?: boolean }).isLive,
+          isUpcoming: (item as unknown as { isUpcoming?: boolean }).isUpcoming,
+        })
+      ) {
+        continue;
+      }
 
       tracks.push({
         id: item.id,
         title: item.title || "Unknown Title",
         artist: item.author?.name || "Unknown Artist",
         album: "YouTube Music",
-        duration:
-          typeof item.lengthSeconds === "number" && item.lengthSeconds > 0
-            ? item.lengthSeconds
-            : 180,
+        duration,
         cover_url: `https://i.ytimg.com/vi/${item.id}/hqdefault.jpg`,
         audio_url: `/api/stream?id=${encodeURIComponent(item.id)}`,
       });
@@ -175,36 +190,76 @@ export async function searchYouTubeTracks(
 
 /**
  * Fetches related tracks for Song Radio / auto-queue.
+ * Filters out podcasts, interviews, full albums, loops, and content > 10 minutes.
  */
 export async function getRelatedYouTubeTracks(
   videoId: string,
   limit = 15
 ): Promise<Track[]> {
   try {
-    const results = await Promise.race([
-      ytdlClient.getRelated(videoId),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("ytdl getRelated timeout")), 4000)
-      ),
-    ]);
+    // 1. Prefer YouTube Music radio for authentic single music tracks
+    let results: readonly unknown[] = [];
+    try {
+      results = await Promise.race([
+        ytdlClient.getRelated(videoId, { music: true }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("ytdl getRelated music timeout")), 3500)
+        ),
+      ]);
+    } catch {
+      // Fallback if YouTube Music radio unavailable for this video
+    }
+
+    // 2. Fallback to standard related videos if YouTube Music radio returned empty
+    if (!Array.isArray(results) || results.length === 0) {
+      results = await Promise.race([
+        ytdlClient.getRelated(videoId),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("ytdl getRelated timeout")), 4000)
+        ),
+      ]);
+    }
 
     if (!Array.isArray(results) || results.length === 0) {
       return [];
     }
 
     const tracks: Track[] = [];
-    for (const item of results) {
+    for (const rawItem of results) {
+      const item = rawItem as {
+        id?: string;
+        title?: string;
+        author?: { name?: string };
+        lengthSeconds?: number;
+        isLive?: boolean;
+        isUpcoming?: boolean;
+      };
+
       if (!item.id || item.id === videoId) continue;
+
+      const duration =
+        typeof item.lengthSeconds === "number" && item.lengthSeconds > 0
+          ? item.lengthSeconds
+          : 0;
+
+      // Filter out non-music, long-form content (> 10 mins), shorts (< 45s), livestreams
+      if (
+        !isMusicTrack({
+          title: item.title,
+          duration,
+          isLive: item.isLive,
+          isUpcoming: item.isUpcoming,
+        })
+      ) {
+        continue;
+      }
 
       tracks.push({
         id: item.id,
         title: item.title || "Unknown Title",
         artist: item.author?.name || "Related Artist",
         album: "Song Radio",
-        duration:
-          typeof item.lengthSeconds === "number" && item.lengthSeconds > 0
-            ? item.lengthSeconds
-            : 180,
+        duration,
         cover_url: `https://i.ytimg.com/vi/${item.id}/hqdefault.jpg`,
         audio_url: `/api/stream?id=${encodeURIComponent(item.id)}`,
       });

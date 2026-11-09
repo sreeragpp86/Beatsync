@@ -3,6 +3,7 @@ import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { MOCK_TRACKS } from "@/lib/mock-tracks";
 import { Track } from "@/types/track";
 import { searchYouTubeTracks } from "@/lib/youtube";
+import { isMusicTrack } from "@/lib/music-filter";
 
 // SWR-compatible upstream query cache headers (5 min server cache, 10 min background revalidation)
 const SWR_CACHE_HEADERS = {
@@ -84,15 +85,26 @@ async function fetchSearchFromInstance(
 
   if (streamItems.length === 0) throw new Error("0 stream items");
 
-  return streamItems.slice(0, 25).map((item) => {
+  const candidates: Track[] = [];
+  for (const item of streamItems) {
     const videoId = extractVideoId(item.url);
+    if (!videoId) continue;
     const coverUrl = getHighResCover(item.thumbnail, videoId);
     const durationSecs =
       typeof item.duration === "number" && item.duration > 0
         ? item.duration
-        : 180;
+        : 0;
 
-    return {
+    if (
+      !isMusicTrack({
+        title: item.title,
+        duration: durationSecs,
+      })
+    ) {
+      continue;
+    }
+
+    candidates.push({
       id: videoId,
       title: item.title || "Unknown Title",
       artist: item.uploaderName || "Unknown Artist",
@@ -100,8 +112,13 @@ async function fetchSearchFromInstance(
       duration: durationSecs,
       cover_url: coverUrl,
       audio_url: `/api/stream?id=${encodeURIComponent(videoId)}`,
-    };
-  });
+    });
+
+    if (candidates.length >= 25) break;
+  }
+
+  if (candidates.length === 0) throw new Error("0 valid music stream items");
+  return candidates;
 }
 
 export async function GET(request: NextRequest) {

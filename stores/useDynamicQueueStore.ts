@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import { Track } from "@/types/track";
 import { useLikesStore } from "@/stores/useLikesStore";
 import { toast } from "sonner";
+import { isMusicTrack } from "@/lib/music-filter";
 
 export type VibeType = "balanced" | "deep-cuts" | "familiar" | "upbeat";
 export type DynamicTrackReason = "Same Artist" | "Deep Cut" | "Vibe Match" | "Liked Radio" | "Related";
@@ -305,6 +306,7 @@ export const useDynamicQueueStore = create<DynamicQueueState>()(
 
               for (const track of fetchedTracks) {
                 if (
+                  !isMusicTrack(track) ||
                   existingIds.has(track.id) ||
                   skippedSet.has(track.id) ||
                   recent30History.has(track.id)
@@ -351,6 +353,7 @@ export const useDynamicQueueStore = create<DynamicQueueState>()(
 
                 for (const track of catalogTracks) {
                   if (
+                    !isMusicTrack(track) ||
                     existingIds.has(track.id) ||
                     skippedSet.has(track.id) ||
                     recent30History.has(track.id)
