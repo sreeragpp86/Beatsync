@@ -14,6 +14,7 @@ export interface DynamicTrack extends Track {
 
 export interface DynamicQueueState {
   // Multi-Tier Queue State
+  isDynamicQueueEnabled: boolean; // Optional: toggle between Dynamic Flow and Classic YouTube Queue
   userQueue: DynamicTrack[]; // Manual user "Play Next" list (highest priority)
   dynamicPool: DynamicTrack[]; // Rolling 6-track algorithmic buffer
   skippedTrackIds: string[]; // Set of track IDs skipped under 20 seconds
@@ -22,6 +23,8 @@ export interface DynamicQueueState {
   isReplenishing: boolean;
 
   // Actions
+  toggleDynamicQueue: () => void;
+  setDynamicQueueEnabled: (enabled: boolean) => void;
   setVibe: (vibe: VibeType, referenceTrack?: Track | null) => Promise<void>;
   addToUserQueue: (track: Track, atStart?: boolean) => void;
   removeFromUserQueue: (trackId: string) => void;
@@ -45,12 +48,30 @@ const SESSION_HISTORY_DEDUP_LIMIT = 30;
 export const useDynamicQueueStore = create<DynamicQueueState>()(
   persist(
     (set, get) => ({
+      isDynamicQueueEnabled: true,
       userQueue: [],
       dynamicPool: [],
       skippedTrackIds: [],
       currentVibe: "balanced",
       sessionHistory: [],
       isReplenishing: false,
+
+      toggleDynamicQueue: () => {
+        const next = !get().isDynamicQueueEnabled;
+        set({ isDynamicQueueEnabled: next });
+        toast.info(
+          next ? "Switched to Dynamic AI Queue Flow" : "Switched to Classic YouTube Queue",
+          { duration: 1800, id: "queue-mode-toggle" }
+        );
+      },
+
+      setDynamicQueueEnabled: (enabled: boolean) => {
+        set({ isDynamicQueueEnabled: enabled });
+        toast.info(
+          enabled ? "Switched to Dynamic AI Queue Flow" : "Switched to Classic YouTube Queue",
+          { duration: 1800, id: "queue-mode-toggle" }
+        );
+      },
 
       setVibe: async (vibe: VibeType, referenceTrack?: Track | null) => {
         set({ currentVibe: vibe, dynamicPool: [] });
@@ -374,6 +395,7 @@ export const useDynamicQueueStore = create<DynamicQueueState>()(
       name: "beatsync_dynamic_queue_storage",
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
+        isDynamicQueueEnabled: state.isDynamicQueueEnabled,
         userQueue: state.userQueue,
         dynamicPool: state.dynamicPool,
         skippedTrackIds: state.skippedTrackIds.slice(-50),

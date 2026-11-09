@@ -59,7 +59,7 @@ export function NowPlayingModal() {
     toggleQueue,
   } = useAudioStore();
 
-  const { userQueue, dynamicPool } = useDynamicQueueStore();
+  const { userQueue, dynamicPool, isDynamicQueueEnabled } = useDynamicQueueStore();
 
   const [activeTab, setActiveTab] = useState<"song" | "lyrics">("song");
   const [isDragging, setIsDragging] = useState(false);
@@ -179,10 +179,11 @@ export function NowPlayingModal() {
     }
   };
 
-  const nextTrack =
-    userQueue[0] ||
-    dynamicPool[0] ||
-    (queueIndex >= 0 && queueIndex < queue.length - 1 ? queue[queueIndex + 1] : null);
+  const nextTrack = isDynamicQueueEnabled
+    ? userQueue[0] ||
+      dynamicPool[0] ||
+      (queueIndex >= 0 && queueIndex < queue.length - 1 ? queue[queueIndex + 1] : null)
+    : (queueIndex >= 0 && queueIndex < queue.length - 1 ? queue[queueIndex + 1] : null);
 
   return (
     <div

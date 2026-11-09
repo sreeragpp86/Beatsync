@@ -879,6 +879,7 @@ export const useAudioStore = create<AudioState>((set, get) => {
 
     playNext: () => {
       const { queue, queueIndex, currentTrack, currentTime, isShuffle, repeatMode } = get();
+      const isDynamicEnabled = useDynamicQueueStore.getState().isDynamicQueueEnabled;
 
       // 1. Record skip if skipped under 20s
       if (currentTrack) {
@@ -903,11 +904,13 @@ export const useAudioStore = create<AudioState>((set, get) => {
         return;
       }
 
-      // 3. Dynamic Queue Tier 1 (User Queue) & Tier 2 (Dynamic Pool) takes priority
-      const nextDynamic = useDynamicQueueStore.getState().getNextTrack();
-      if (nextDynamic) {
-        get().playTrack(nextDynamic);
-        return;
+      // 3. Dynamic Queue Mode: Tier 1 (User Queue) & Tier 2 (Dynamic Pool) take priority
+      if (isDynamicEnabled) {
+        const nextDynamic = useDynamicQueueStore.getState().getNextTrack();
+        if (nextDynamic) {
+          get().playTrack(nextDynamic);
+          return;
+        }
       }
 
       if (!queue || queue.length === 0) return;
@@ -925,8 +928,7 @@ export const useAudioStore = create<AudioState>((set, get) => {
 
       const nextIndex = queueIndex + 1;
 
-      // Infinite radio queue generator: when queue.length - queueIndex <= 3,
-      // automatically query the next batch of related tracks and append them to keep playback infinite
+      // 5. Classic YouTube sequential queue: when near end of queue, fetch next batch
       if (queue.length - nextIndex <= 3) {
         const referenceTrack = queue[nextIndex] || currentTrack || queue[queue.length - 1];
         if (referenceTrack) {
@@ -940,21 +942,32 @@ export const useAudioStore = create<AudioState>((set, get) => {
         // Reached end of queue before background fetch resolved: wait for related tracks or loop
         const referenceTrack = currentTrack || queue[queue.length - 1];
         if (referenceTrack) {
-          useDynamicQueueStore.getState().replenishPool(referenceTrack).then(() => {
-            const fallbackNext = useDynamicQueueStore.getState().getNextTrack();
-            if (fallbackNext) {
-              get().playTrack(fallbackNext);
-            } else {
-              get().fetchAutoQueue(referenceTrack).then(() => {
-                const refreshedQueue = get().queue;
-                if (refreshedQueue.length > queueIndex + 1) {
-                  get().playQueueIndex(queueIndex + 1);
-                } else {
-                  get().playQueueIndex(0);
-                }
-              });
-            }
-          });
+          if (isDynamicEnabled) {
+            useDynamicQueueStore.getState().replenishPool(referenceTrack).then(() => {
+              const fallbackNext = useDynamicQueueStore.getState().getNextTrack();
+              if (fallbackNext) {
+                get().playTrack(fallbackNext);
+              } else {
+                get().fetchAutoQueue(referenceTrack).then(() => {
+                  const refreshedQueue = get().queue;
+                  if (refreshedQueue.length > queueIndex + 1) {
+                    get().playQueueIndex(queueIndex + 1);
+                  } else {
+                    get().playQueueIndex(0);
+                  }
+                });
+              }
+            });
+          } else {
+            get().fetchAutoQueue(referenceTrack).then(() => {
+              const refreshedQueue = get().queue;
+              if (refreshedQueue.length > queueIndex + 1) {
+                get().playQueueIndex(queueIndex + 1);
+              } else {
+                get().playQueueIndex(0);
+              }
+            });
+          }
         } else {
           get().playQueueIndex(0);
         }
